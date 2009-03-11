@@ -1,0 +1,26 @@
+--- #YAML:1.0
+name:                App-Toodledo
+version:             0.01
+abstract:            Perl class for interacting with Toodledo.
+license:             perl
+author:              
+    - Peter J. Scott <cpan@psdt.com>
+generated_by:        ExtUtils::MakeMaker version 6.42
+distribution_type:   module
+requires:     
+    Date::Parse:                   0
+    Digest::MD5:                   0
+    File::HomeDir:                 0
+    Moose:                         0
+    MooseX::Method:                0
+    REST::Client:                  0
+    Test::Exception:               0
+    Test::MockModule:              0
+    Test::MockObject::Extends:     0
+    Test::More:                    0
+    Test::NoWarnings:              0
+    XML::LibXML:                   0
+    YAML:                          0
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3

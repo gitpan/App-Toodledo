@@ -1,0 +1,51 @@
+App-Toodledo
+
+Toodledo (http://www.toodledo.com/) is a web-based capability for managing
+to-do lists along Getting Things Done (GTD) lines.  This module
+provides a Perl-based access to its API.
+
+What do you need the API for?  Doesn't the web interface do everything
+you want?  Not always.  See the examples included with this distribution.
+For instance, Toodledo has only one level of notification and it's either
+on or off.  With the API you can customize the heck out of notification.
+
+INSTALLATION
+
+To install this module, run the following commands:
+
+	perl Makefile.PL
+	make
+	make test
+	make install
+
+	... or, just 'cpan App::Toodledo'
+
+SUPPORT AND DOCUMENTATION
+
+After installing, you can find documentation for this module with the
+perldoc command.
+
+    perldoc App::Toodledo
+
+You can also look for information at:
+
+    RT, CPAN's request tracker
+        http://rt.cpan.org/NoAuth/Bugs.html?Dist=App-Toodledo
+
+    AnnoCPAN, Annotated CPAN documentation
+        http://annocpan.org/dist/App-Toodledo
+
+    CPAN Ratings
+        http://cpanratings.perl.org/d/App-Toodledo
+
+    Search CPAN
+        http://search.cpan.org/dist/App-Toodledo/
+
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2009 Peter J. Scott
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
