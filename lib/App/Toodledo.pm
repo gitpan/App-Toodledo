@@ -2,7 +2,7 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use Carp;
 use File::Spec;
@@ -256,8 +256,8 @@ sub add_goal
 
   $title or croak "Must supply title";
   my %opt = (title => $title);
-  $opt{level} = $level if $level;
-  $opt{contributes} = $contrib if $contrib;
+  $opt{level} = $level if defined $level;
+  $opt{contributes} = $contrib if defined $contrib;
   $self->_add_a( goal => \%opt );
 }
 
@@ -329,7 +329,7 @@ __END__
 
 =head1 NAME
 
-App::Toodledo - Perl class for interacting with Toodledo.
+App::Toodledo - Interacting with the Toodledo task management service.
 
 =head1 SYNOPSIS
 
@@ -393,7 +393,7 @@ are supplied via a hashref.  Examples:
 
 The result is an L<XML::LibXML::Element>.  See the CPAN documentation
 for that class and its superclass, L<XML::LibXML::Node>.  The
-C<findnodes> and C<getChilderenByTagName> methods are particularly useful.
+C<findnodes> and C<getChildrenByTagName> methods are particularly useful.
 
 =head2 $todo->foreach_task( \&callback, \%ssearch_opts )
 
@@ -497,7 +497,7 @@ Implement the C<getFolders> call to a C<App::Toodledo::Folder> object.
 
 =item *
 
- Ditto for contexts and goals.
+Ditto for contexts and goals.
 
 =item *
 

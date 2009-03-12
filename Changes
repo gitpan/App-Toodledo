@@ -1,5 +1,8 @@
 Revision history for App-Toodledo
 
-0.01    Date/time
+0.01    March 10, 2009
         First version, released on an unsuspecting world.
 
+0.02	March 12, 2009
+	Switch from checking boolean to defined for some API calls.
+	Didn't realize Readonly wasn't in core.

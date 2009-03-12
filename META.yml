@@ -1,7 +1,7 @@
 --- #YAML:1.0
 name:                App-Toodledo
-version:             0.01
-abstract:            Perl class for interacting with Toodledo.
+version:             0.02
+abstract:            Interacting with the Toodledo task management service.
 license:             perl
 author:              
     - Peter J. Scott <cpan@psdt.com>
@@ -13,6 +13,7 @@ requires:
     File::HomeDir:                 0
     Moose:                         0
     MooseX::Method:                0
+    Readonly:                      0
     REST::Client:                  0
     Test::Exception:               0
     Test::MockModule:              0
