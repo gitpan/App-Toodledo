@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 5;
+use Test::More tests => 6;
 use Test::NoWarnings;
 use Test::Exception;
 use Test::MockModule;
@@ -22,7 +22,9 @@ my $mock_client = Test::MockModule->new( 'REST::Client' );
 $todo->client( REST::Client->new );
 
 my $func;
+my $code = 200;
 $mock_client->mock( GET => sub { $func = $_[1] } );
+$mock_client->mock( responseCode => sub { $code } );
 $mock_client->mock( responseXpath => sub { $DOC } );
 
 my $doc;
@@ -35,3 +37,6 @@ $todo->call_func( $FUNC );
 is $func, "/api.php?method=myFunc;userid=$USERID";
 
 is $doc, $DOC;
+
+$code = 400;
+throws_ok { $todo->call_func( $FUNC ) } qr/Toodledo/;

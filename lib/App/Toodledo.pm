@@ -2,7 +2,7 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use Carp;
 use File::Spec;
@@ -149,6 +149,7 @@ method call_func => positional (
   my $client = $self->client or croak "Must login first";
   _debug( "Calling function $func\n" );
   $client->GET( $self->_make_path( $func, %$argref ) );
+  $client->responseCode != 200 and die "Unable to contact Toodledo\n";
   my $doc = $client->responseXpath;
   _context_from_doc( $doc );
 };

@@ -6,3 +6,7 @@ Revision history for App-Toodledo
 0.02	March 12, 2009
 	Switch from checking boolean to defined for some API calls.
 	Didn't realize Readonly wasn't in core.
+
+0.03    March 22, 2009
+	More meaningful error message if can't contact Toodledo.
+	(Was the parser saying no '<' found.)
