@@ -10,3 +10,6 @@ Revision history for App-Toodledo
 0.03    March 22, 2009
 	More meaningful error message if can't contact Toodledo.
 	(Was the parser saying no '<' found.)
+
+0.04	March 24, 2009
+	Require appropraite versions of Moose and MooseX::Method.
