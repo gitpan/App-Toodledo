@@ -4,6 +4,7 @@ Makefile.PL
 README
 lib/App/Toodledo.pm
 lib/App/Toodledo/Task.pm
+lib/App/Toodledo/Folder.pm
 t/00-load.t
 t/01-new.t
 t/02-login.t

@@ -2,7 +2,7 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 use Carp;
 use File::Spec;
@@ -18,6 +18,7 @@ use Date::Parse;
 use YAML qw(LoadFile);
 
 use App::Toodledo::Task;
+use App::Toodledo::Folder;
 
 
 Readonly my $HOST   => 'api.toodledo.com';
@@ -88,6 +89,23 @@ sub _make_task
   defined( $arg{$_} ) and $task->$_( _datemod( $_, $arg{$_} ) )
     for grep { $attr_map->{$_} } keys %arg;
   $task;
+}
+
+
+sub get_folders
+{
+  my $self = shift;
+
+  my $context = $self->call_func( 'getFolders' );
+  my @folders;
+  for my $element ($context->findnodes( 'folders/folder' ))
+  {
+    my $folder = App::Toodledo::Folder->new;
+    $folder->name( $element->textContent );
+    $folder->$_( $element->getAttribute( $_  ) ) for qw(private archived order);
+    push @folders, $folder;
+  }
+  sort { $a->order <=> $b->order } @folders;
 }
 
 
@@ -233,9 +251,19 @@ method add_task => positional (
 
 sub add_folder
 {
-  my ($self, $title, $private) = @_;
+  my ($self, $whatever, $private) = @_;
 
-  $title or croak "Must supply title";
+  $whatever or croak "Must supply folder object or title";
+  my $title;
+  if (ref $whatever)
+  {
+    my $folder = $whatever;
+    ($title, $private) = ($folder->name, $folder->private);
+  }
+  else
+  {
+    $title = $whatever;
+  }
   my %opt = (title => $title);
   $opt{private} = $private if defined $private;
   $self->_add_a( folder => \%opt );
@@ -337,6 +365,7 @@ App::Toodledo - Interacting with the Toodledo task management service.
     use App::Toodledo;
 
     my $todo = App::Toodledo->new();
+    $todo->login_from_rc;
     my %search_opts = ( notcomp => 1, before => time );  # Already expired
     $todo->foreach_task( \&per_task, \%search_opts );
 
@@ -386,7 +415,8 @@ C<userid> and C<password> must be set, like this:
 
 =head2 $todo->call_func( $function, $argref )
 
-Call an arbitrary Toodledo API function C<$function>.  Arguments
+Call an arbitrary Toodledo API function C<$function>.  Use this for any
+function not wrapped in a more convenient method below.  Arguments
 are supplied via a hashref.  Examples:
 
   $context = $todo->call_func( 'getAccountInfo'  );
@@ -396,7 +426,7 @@ The result is an L<XML::LibXML::Element>.  See the CPAN documentation
 for that class and its superclass, L<XML::LibXML::Node>.  The
 C<findnodes> and C<getChildrenByTagName> methods are particularly useful.
 
-=head2 $todo->foreach_task( \&callback, \%ssearch_opts )
+=head2 $todo->foreach_task( \&callback, [ \%search_opts ] )
 
 Run the subroutine C<callback> for every task that matches the
 search criteria in C<%search_opts>.  The callback will be called with
@@ -419,6 +449,11 @@ converted to the required format for you.
 
 =back
 
+=head2 @folders = $todo->get_folders
+
+Return a list of L<App::Toodledo::Folder> objects, ordered by their
+C<order> attribute.
+
 =head2 $id = $todo->add_task( $task )
 
 The argument should be a new L<App::Toodledo::Task> object to be created.
@@ -428,12 +463,14 @@ The result is the id of the new task.
 
 Add a context with the given title.
 
-=head2 $id = $todo->add_folder( $title, [$private] )
+=head2 $id = $todo->add_folder( $title_or_folder, [ $private ] )
 
 Add a folder with the given title.  C<$private> if supplied must be either
 0 (default) or 1, which signifies that the folder is to be private.
+If the first argument is an L<App::Toodledo::Folder> object, the title
+and private attributes will be taken from it.
 
-=head2 $id = $todo->add_goal( $title, [$level, [$contributes]] )
+=head2 $id = $todo->add_goal( $title, [ $level, [ $contributes ] ] )
 
 Add a goal with the given title.  The C<$level> if supplied should be
 0 (default), 1, or 2, signifying goal span (0=lifetime, 1=long-term,
@@ -494,11 +531,11 @@ submit a patch for:
 
 =item *
 
-Implement the C<getFolders> call to a C<App::Toodledo::Folder> object.
+Implement the C<getContexts> call to an C<App::Toodledo::Context> object.
 
 =item *
 
-Ditto for contexts and goals.
+Ditto for goals.
 
 =item *
 

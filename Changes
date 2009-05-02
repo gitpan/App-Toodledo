@@ -12,4 +12,4 @@ Revision history for App-Toodledo
 	(Was the parser saying no '<' found.)
 
 0.04	March 24, 2009
-	Require appropraite versions of Moose and MooseX::Method.
+	Require appropriate versions of Moose and MooseX::Method.
