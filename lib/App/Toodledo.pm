@@ -2,7 +2,7 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 use Carp;
 use File::Spec;
@@ -62,7 +62,7 @@ sub _rcfile
 
 method foreach_task => positional (
   { isa => 'CodeRef', required => 1 },
-  { isa => 'HashRef' } ) => sub
+  { isa => 'HashRef', default => {} } ) => sub
 {
   my ($self, $callback, $optref) = @_;
 
@@ -85,9 +85,9 @@ sub _make_task
   my $task = App::Toodledo::Task->new;
 
   # Protect against extra attributes being added before we can update
-  my $attr_map = $task->meta->get_attribute_map;
+  my %attr_map = map { $_, 1 } $task->_actual_attributes;
   defined( $arg{$_} ) and $task->$_( _datemod( $_, $arg{$_} ) )
-    for grep { $attr_map->{$_} } keys %arg;
+    for grep { $attr_map{$_} } keys %arg;
   $task;
 }
 
@@ -102,7 +102,8 @@ sub get_folders
   {
     my $folder = App::Toodledo::Folder->new;
     $folder->name( $element->textContent );
-    $folder->$_( $element->getAttribute( $_  ) ) for qw(private archived order);
+    $folder->$_( $element->getAttribute( $_  ) )
+      for qw(id private archived order);
     push @folders, $folder;
   }
   sort { $a->order <=> $b->order } @folders;
@@ -159,11 +160,10 @@ sub _make_client   # Overrideable for testing
 
 method call_func => positional (
   { isa => 'Str', required => 1 },
-  { isa => 'HashRef' } ) => sub
+  { isa => 'HashRef', default => {} } ) => sub
 {
   my ($self, $func, $argref) = @_;
 
-  $argref ||= {};
   my $client = $self->client or croak "Must login first";
   _debug( "Calling function $func\n" );
   $client->GET( $self->_make_path( $func, %$argref ) );
@@ -528,6 +528,10 @@ Help improve App::Toodledo!  Some low-hanging fruit you might want to
 submit a patch for:
 
 =over 4
+
+=item *
+
+Use the new C<unix> parameter to C<getTasks> to simplify date fetching.
 
 =item *
 

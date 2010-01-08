@@ -13,3 +13,9 @@ Revision history for App-Toodledo
 
 0.04	March 24, 2009
 	Require appropriate versions of Moose and MooseX::Method.
+
+0.05	May 2, 2009
+	Added App::Toodledo::Folder class and get_folders method.
+
+0.06	Jan 8, 2010
+	Fix for get_attribute_map being deprecated in Class::MOP::Class

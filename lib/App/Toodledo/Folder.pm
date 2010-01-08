@@ -2,11 +2,12 @@ package App::Toodledo::Folder;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use Carp;
 use Moose;
 
+has id          => ( is => 'rw', isa => 'Int' );
 has name        => ( is => 'rw', isa => 'Str' );
 has private     => ( is => 'rw', isa => 'Int' );
 has archived    => ( is => 'rw', isa => 'Int' );
@@ -32,6 +33,7 @@ App::Toodledo::Folder - class encapsulating a Toodledo folder
 This class provides accessors for the properties of a Toodledo folder.
 The following attributes are defined:
 
+  id
   name
   private
   archived

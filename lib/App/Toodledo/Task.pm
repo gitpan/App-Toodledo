@@ -45,8 +45,7 @@ sub _for_api
 
   my %attr;
   $self->title or croak "Title required";
-  my $attr_map = $self->meta->get_attribute_map;    # ****
-  for my $attr (keys %$attr_map)
+  for my $attr ( $self->_actual_attributes )
   {
     defined(my $value = $self->$attr) or next;
     $value = _mung_attr( $attr, $value );
@@ -54,6 +53,13 @@ sub _for_api
   }
 
   \%attr;
+}
+
+
+sub _actual_attributes
+{
+  my $self = shift;
+  $self->meta->get_attribute_list;
 }
 
 

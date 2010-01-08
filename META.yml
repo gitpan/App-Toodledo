@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                App-Toodledo
-version:             0.05
+version:             0.06
 abstract:            Interacting with the Toodledo task management service.
 license:             perl
 author:              
@@ -11,8 +11,8 @@ requires:
     Date::Parse:                   0
     Digest::MD5:                   0
     File::HomeDir:                 0
-    Moose:                         0.64
-    MooseX::Method:                0.4
+    Moose:                         0.93
+    MooseX::Method:                0.44
     Readonly:                      0
     REST::Client:                  0
     Test::Exception:               0
