@@ -2,7 +2,7 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 use Carp;
 use File::Spec;
@@ -167,18 +167,21 @@ method call_func => positional (
   my $client = $self->client or croak "Must login first";
   _debug( "Calling function $func\n" );
   $client->GET( $self->_make_path( $func, %$argref ) );
-  $client->responseCode != 200 and die "Unable to contact Toodledo\n";
+  $client->responseCode != 200 and croak "Unable to contact Toodledo\n";
+  $client->responseContent =~ /(Excessive API token requests.*blocked)/s
+    and croak "$1\n";
   my $doc = $client->responseXpath;
   _context_from_doc( $doc );
 };
 
 
+# Somehow the behavior changed with REST::Client v134
 sub _context_from_doc
 {
-  my $doc = shift;
+  #  my $doc = shift;
 
-  my $context = XML::LibXML::XPathContext->new( $doc );
-  my ($error) = $context->findnodes( "error" );
+  my $context = shift;   # XML::LibXML::XPathContext->new( $doc );
+  my ($error) = $context->findnodes( 'error' );
   croak "API error: " . $error->textContent if $error;
   $context;
 }

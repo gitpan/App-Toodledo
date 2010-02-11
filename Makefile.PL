@@ -17,7 +17,7 @@ WriteMakefile(
         'Test::Exception' => 0,
         'Test::MockModule' => 0,
         'Test::MockObject::Extends' => 0,
-        'REST::Client' => 0,
+        'REST::Client' => 134,
         'Moose' => 0.93,
         'MooseX::Method' => 0.44,
         'XML::LibXML' => 0,

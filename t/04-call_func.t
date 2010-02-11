@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 6;
+use Test::More tests => 7;
 use Test::NoWarnings;
 use Test::Exception;
 use Test::MockModule;
@@ -25,6 +25,7 @@ my $func;
 my $code = 200;
 $mock_client->mock( GET => sub { $func = $_[1] } );
 $mock_client->mock( responseCode => sub { $code } );
+$mock_client->mock( responseContent => sub { '' } );
 $mock_client->mock( responseXpath => sub { $DOC } );
 
 my $doc;
@@ -40,3 +41,7 @@ is $doc, $DOC;
 
 $code = 400;
 throws_ok { $todo->call_func( $FUNC ) } qr/Toodledo/;
+
+$mock_client->mock( responseContent => sub { 'Excessive API token requests...blocked' } );
+$code = 200;
+throws_ok { $todo->call_func( $FUNC ) } qr/Excessive/;

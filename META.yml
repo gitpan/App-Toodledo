@@ -1,27 +1,35 @@
 --- #YAML:1.0
-name:                App-Toodledo
-version:             0.06
-abstract:            Interacting with the Toodledo task management service.
-license:             perl
-author:              
+name:               App-Toodledo
+version:            0.07
+abstract:           Interacting with the Toodledo task management service.
+author:
     - Peter J. Scott <cpan@psdt.com>
-generated_by:        ExtUtils::MakeMaker version 6.42
-distribution_type:   module
-requires:     
-    Date::Parse:                   0
-    Digest::MD5:                   0
-    File::HomeDir:                 0
-    Moose:                         0.93
-    MooseX::Method:                0.44
-    Readonly:                      0
-    REST::Client:                  0
-    Test::Exception:               0
-    Test::MockModule:              0
-    Test::MockObject::Extends:     0
-    Test::More:                    0
-    Test::NoWarnings:              0
-    XML::LibXML:                   0
-    YAML:                          0
+license:            perl
+distribution_type:  module
+configure_requires:
+    ExtUtils::MakeMaker:  0
+build_requires:
+    ExtUtils::MakeMaker:  0
+requires:
+    Date::Parse:          0
+    Digest::MD5:          0
+    File::HomeDir:        0
+    Moose:                0.93
+    MooseX::Method:       0.44
+    Readonly:             0
+    REST::Client:         134
+    Test::Exception:      0
+    Test::MockModule:     0
+    Test::MockObject::Extends:  0
+    Test::More:           0
+    Test::NoWarnings:     0
+    XML::LibXML:          0
+    YAML:                 0
+no_index:
+    directory:
+        - t
+        - inc
+generated_by:       ExtUtils::MakeMaker version 6.56
 meta-spec:
-    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
-    version: 1.3
+    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
+    version:  1.4
