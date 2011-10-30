@@ -2,82 +2,69 @@ package App::Toodledo::Task;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '1.00';
 
 use Carp;
 use Moose;
-use MooseX::Method;
+use MooseX::Method::Signatures;
+use App::Toodledo::TaskInternal;
+use App::Toodledo::Util qw(toodledo_decode toodledo_encode);
 
-# NOTE: If you add any attribute that is not a Toodledo property,
-# you must come up with a way to replace the line commented ****
-# below.  It uses the shortcut of listing all the possible
-# attributes of the class in order to see what should be passed
-# to the Toodledo task creation call.  Maybe naming internal
-# attributes with a leading underscore and putting the appropriate
-# grep in the **** line would be a good approach.
+use Moose::Util::TypeConstraints;
+BEGIN { class_type 'App::Toodledo' };
 
-has id           => ( is => 'rw', isa => 'Int' );
-has parent       => ( is => 'rw', isa => 'Int' );
-has children     => ( is => 'rw', isa => 'Int' );
-has title        => ( is => 'rw', isa => 'Str' );
-has tag          => ( is => 'rw', isa => 'Str' );
-has folder       => ( is => 'rw', isa => 'Int' );
-has context      => ( is => 'rw', isa => 'Str' );
-has goal         => ( is => 'rw', isa => 'Str' );
-has added        => ( is => 'rw', isa => 'Str' );
-has modified     => ( is => 'rw', isa => 'Str' );
-has startdate    => ( is => 'rw', isa => 'Str' );
-has duedate      => ( is => 'rw', isa => 'Str' );
-has duetime      => ( is => 'rw', isa => 'Str' );
-has completed    => ( is => 'rw', isa => 'Str' );
-has repeat       => ( is => 'rw', isa => 'Int' );
-has rep_advanced => ( is => 'rw', isa => 'Str' );
-has status       => ( is => 'rw', isa => 'Int' );
-has star         => ( is => 'rw', isa => 'Int' );
-has priority     => ( is => 'rw', isa => 'Int' );
-has length       => ( is => 'rw', isa => 'Int' );
-has timer        => ( is => 'rw', isa => 'Int' );
-has note         => ( is => 'rw', isa => 'Str' );
+extends 'App::Toodledo::InternalWrapper';
 
-sub _for_api
-{
-  my $self = shift;
+# TODO: Figure out how to put this attribute in the wrapper:
+has object => ( is => 'ro', isa => 'App::Toodledo::TaskInternal',
+	        default => sub { App::Toodledo::TaskInternal->new },
+	        handles => sub { __PACKAGE__->internal_attributes( $_[1] ) } );
 
-  my %attr;
-  $self->title or croak "Title required";
-  for my $attr ( $self->_actual_attributes )
-  {
-    defined(my $value = $self->$attr) or next;
-    $value = _mung_attr( $attr, $value );
-    $attr{$attr} = $value;
-  }
+method tag ( @args ) {
+  toodledo_decode( $self->object->tag( @args ) );
+}
 
-  \%attr;
+method title ( @args ) {
+  toodledo_decode( $self->object->title( @args ) );
+}
+
+method note ( @args ) {
+  toodledo_decode( $self->object->note( @args ) );
 }
 
 
-sub _actual_attributes
-{
-  my $self = shift;
-  $self->meta->get_attribute_list;
+method tags {
+  split /,/, $self->tag;
 }
 
 
-sub _mung_attr
-{
-  my ($attr, $value) = @_;
+# Return id of added task
+method add ( App::Toodledo $todo! ) {
+  my %param = %{ $self->object };
+  $param{$_} = toodledo_encode( $param{$_} )
+    for grep { $param{$_} } qw(title tag note);
+  my $added_ref = $todo->call_func( tasks => add => { tasks => \%param } );
+  $added_ref->[0]{id};
+}
 
-  if ( $attr =~ /\A(?:title|tag)\Z/ )
-  {
-    return App::Toodledo::_toodledo_encode( $value );
-  }
-  if ( $attr =~ /\A(?:added|startdate|duedate|modified|completed)\Z/ )
-  {
-    my $type = $1 || '';
-    return $type eq 'modified' ? App::Toodledo::_toodledo_time( $value )
-                               : App::Toodledo::_toodledo_date( $value );
-  }
-  $value;
+
+method optional_attributes ( $class: ) {
+  my @attrs = $class->attribute_list;
+  grep { ! /\A(?:id|title|modified|completed)\z/ } @attrs;
+}
+
+
+method edit ( App::Toodledo $todo! ) {
+  my %param = %{ $self->object };
+  my $edited_ref = $todo->call_func( tasks => edit => { tasks => \%param } );
+  $edited_ref->[0]{id};
+}
+
+
+method delete ( App::Toodledo $todo! ) {
+  my $id = $self->id;
+  my $deleted_ref = $todo->call_func( tasks => delete => { tasks => [$id] } );
+  $deleted_ref->[0]{id} == $id or croak "Did not get ID back from delete";
 }
 
 
@@ -93,70 +80,17 @@ App::Toodledo::Task - class encapsulating a Toodledo task
 
   $task = App::Toodledo::Task->new;
   $task->title( 'Put the cat out' );
-  $todo = App::Toodledo->new;
-  $todo->login_from_rc;
-  $todo->add_task( $task );
 
 =head1 DESCRIPTION
 
 This class provides accessors for the properties of a Toodledo task.
-The following accessors are defined:
+The attributes of a task are defined in the L<App::Toodledo::TaskRole>
+module.
 
- id           
- parent       
- children     
- title        
- tag          
- folder       
- context      
- goal         
- added        
- modified     
- startdate    
- duedate      
- duetime      
- completed    
- repeat       
- rep_advanced 
- status       
- star         
- priority     
- length       
- timer        
- note         
+=head1 METHODS
 
-=head2 Variant behaviors
+=head2 tags
 
-The return value for the following accessors:
-
-=over
-
-=item *
-
-added
-
-=item *
-
-modified
-
-=item *
-
-startdate
-
-=item *
-
-duedate
-
-=item *
-
-completed
-
-=back
-
-is not the Toodledo textual date but instead a Unix
-epoch time (integer seconds) like that returned by C<time()>.  Likewise,
-when supplying a value to these accessors, supply an epoch time.
-The object will convert the values coming and going to Toodledo.
 
 =head1 CAVEAT
 
@@ -178,7 +112,7 @@ Toodledo API documentation: L<http://www.toodledo.com/info/api_doc.php>.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2009 Peter J. Scott, all rights reserved.
+Copyright 2009-2011 Peter J. Scott, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

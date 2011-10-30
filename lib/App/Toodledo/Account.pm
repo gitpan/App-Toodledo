@@ -1,18 +1,16 @@
-package App::Toodledo::Folder;
-use strict;
-use warnings;
+package App::Toodledo::Account;
 
 our $VERSION = '1.00';
 
 use Carp;
 use Moose;
 use MooseX::Method::Signatures;
-use App::Toodledo::FolderInternal;
+use App::Toodledo::AccountInternal;
 
 extends 'App::Toodledo::InternalWrapper';
 
-has object => ( is => 'ro', isa => 'App::Toodledo::FolderInternal',
-	        default => sub { App::Toodledo::FolderInternal->new },
+has object => ( is => 'ro', isa => 'App::Toodledo::AccountInternal',
+	        default => sub { App::Toodledo::AccountInternal->new },
 	        handles => sub { __PACKAGE__->internal_attributes( $_[1] ) } );
 
 1;
@@ -21,20 +19,19 @@ __END__
 
 =head1 NAME
 
-App::Toodledo::Folder - class encapsulating a Toodledo folder
+App::Toodledo::Account - class encapsulating a Toodledo account
 
 =head1 SYNOPSIS
 
-  $folder = App::Toodledo::Folder->new;
-  $folder->name( 'Shopping List' )
+  $account = App::Toodledo::Account->new;
   $todo = App::Toodledo->new;
-  $todo->add_folder( $folder );
 
 =head1 DESCRIPTION
 
-This class provides accessors for the properties of a Toodledo folder.
-The attributes of a folder are defined in the L<App::Toodledo::FolderRole>
-module.
+This class provides accessors for the properties of a Toodledo account.
+The following attributes are defined:
+
+XXX
 
 =head1 AUTHOR
 
@@ -54,3 +51,4 @@ This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
 
 =cut
+

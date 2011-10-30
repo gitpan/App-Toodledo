@@ -1,6 +1,28 @@
 use strict;
 use warnings;
 use ExtUtils::MakeMaker;
+use File::Spec;
+
+use Getopt::Long;
+
+GetOptions( 'userid=s' => \my $userid, 'password=s' => \my $password );
+
+my $datafile = File::Spec->catfile( t => 'live.data' );
+if ( $userid && $password && open my $fh, '>', $datafile )
+{
+  print {$fh} "$userid\n$password\n";
+  close $fh;
+  warn <<'EOT';
+Live tests enabled.  Warning: These will add a task to your Toodledo
+account (and delete it).  The tests will fail if you have no folders
+in your Toodledo account, or if Toodledo cannot be contacted, or if
+something else adds a task while the test is being conducted.
+EOT
+}
+else
+{
+  warn "No live tests\n";
+}
 
 WriteMakefile(
     NAME                => 'App::Toodledo',
@@ -16,11 +38,12 @@ WriteMakefile(
         'Test::NoWarnings' => 0,
         'Test::Exception' => 0,
         'Test::MockModule' => 0,
-        'Test::MockObject::Extends' => 0,
-        'REST::Client' => 134,
+        'Test::MockObject' => 1.20110612,
         'Moose' => 0.93,
-        'MooseX::Method' => 0.44,
-        'XML::LibXML' => 0,
+        'MooseX::Method::Signatures' => 0,
+	'MooseX::ClassAttribute' => 0.12,
+        'JSON' => 0,
+	'URI::Encode' => 0,
         'Digest::MD5' => 0,
         'Date::Parse' => 0,
         'File::HomeDir' => 0,

@@ -2,7 +2,10 @@ App-Toodledo
 
 Toodledo (http://www.toodledo.com/) is a web-based capability for managing
 to-do lists along Getting Things Done (GTD) lines.  This module
-provides a Perl-based access to its API.
+provides a Perl-based access to its API.  This is a complete rewrite to
+version 2 of the API.
+
+THIS MODULE IS NOT BACKWARDS COMPATIBLE WITH ANY PREVIOUS VERSIONS.
 
 What do you need the API for?  Doesn't the web interface do everything
 you want?  Not always.  See the examples included with this distribution.
@@ -19,6 +22,11 @@ To install this module, run the following commands:
 	make install
 
 	... or, just 'cpan App::Toodledo'
+
+You can enable live tests by giving your Toodledo userid and password
+on the first line:
+
+        perl Makefile.PL --user_id td23943abe402  --password secret
 
 SUPPORT AND DOCUMENTATION
 
@@ -44,7 +52,7 @@ You can also look for information at:
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2009 Peter J. Scott
+Copyright (C) 2011 Peter J. Scott
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

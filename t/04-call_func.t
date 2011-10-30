@@ -6,42 +6,37 @@ use Test::More tests => 7;
 use Test::NoWarnings;
 use Test::Exception;
 use Test::MockModule;
+use Test::MockObject;
+use JSON;
 
 my $CLASS;
-my $FUNC = 'myFunc';
-my $DOC = 'XML document';
-my $USERID = 'username';
+my $FUNC    = 'myFunc';
+my $SUBFUNC = 'mySubFunc';
+my $USERID  = 'username';
+my $APPID   = 'myApp';
 
 BEGIN { $CLASS = 'App::Toodledo'; use_ok $CLASS }
 
-my $todo = $CLASS->new;
-
-throws_ok { $todo->call_func( $FUNC ) } qr/login/;
-
-my $mock_client = Test::MockModule->new( 'REST::Client' );
-$todo->client( REST::Client->new );
-
-my $func;
-my $code = 200;
-$mock_client->mock( GET => sub { $func = $_[1] } );
-$mock_client->mock( responseCode => sub { $code } );
-$mock_client->mock( responseContent => sub { '' } );
-$mock_client->mock( responseXpath => sub { $DOC } );
-
-my $doc;
 my $mock = Test::MockModule->new( $CLASS );
-$mock->mock( _context_from_doc => sub { $doc = shift } );
+my $fake_a = Test::MockObject->new;
+$mock->mock( _make_user_agent => sub { $fake_a } );
+my $todo = $CLASS->new( app_id => $APPID, user_agent => $fake_a );
 
-$todo->userid( $USERID );
-$todo->call_func( $FUNC );
+my $url;
+my $fake_r = Test::MockObject->new;
+my $code = 543;
+$fake_r->mock( code => sub { $code } );
+$fake_a->mock( post => sub { $url = $_[1]; $fake_r } );
 
-is $func, "/api.php?method=myFunc;userid=$USERID";
+throws_ok { $todo->call_func( $FUNC, $SUBFUNC ) } qr/contact/;
 
-is $doc, $DOC;
-
-$code = 400;
-throws_ok { $todo->call_func( $FUNC ) } qr/Toodledo/;
-
-$mock_client->mock( responseContent => sub { 'Excessive API token requests...blocked' } );
 $code = 200;
-throws_ok { $todo->call_func( $FUNC ) } qr/Excessive/;
+my $content = encode_json( { errorCode => 500 } );
+$fake_r->mock( content => sub { $content } );
+throws_ok { $todo->call_func( $FUNC, $SUBFUNC ) } qr/offline/;
+like $url, qr!$FUNC/$SUBFUNC!;
+
+$content = encode_json( { foo => 'bar' } );
+my $ref;
+lives_ok { $ref = $todo->call_func( $FUNC, $SUBFUNC ) };
+ok eq_hash( { foo => 'bar' }, $ref );

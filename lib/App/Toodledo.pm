@@ -2,358 +2,334 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '0.07';
+our $VERSION = '2.00';
 
 use Carp;
 use File::Spec;
-use Readonly;
 use Digest::MD5 'md5_hex';
-use REST::Client;
 use Moose;
-use MooseX::Method;
-use XML::LibXML;
+use MooseX::Method::Signatures;
+use MooseX::ClassAttribute;
+use JSON;
+use URI::Encode qw(uri_encode);
+use LWP::UserAgent;
 use POSIX qw(strftime);
-use File::HomeDir;
 use Date::Parse;
-use YAML qw(LoadFile);
+use YAML qw(LoadFile DumpFile);
 
+use App::Toodledo::TokenCache;
+use App::Toodledo::InfoCache;
+use App::Toodledo::Account;
 use App::Toodledo::Task;
-use App::Toodledo::Folder;
+use App::Toodledo::TaskCache;
+use App::Toodledo::Util qw(home debug arg_encode preferred_date_format);
 
+my $HOST          =  'api.toodledo.com';
+my $ROOT_URL      =  "http://$HOST/2/";
 
-Readonly my $HOST   => 'api.toodledo.com';
-Readonly my $RCFILE => '.toodledorc';
+class_has Info_File_Name  => ( is => 'rw', default => '.toodledorc' );
+class_has Token_File_Name => ( is => 'rw', default => '.toodledo_token' );
 
-has userid   => ( is => 'rw', isa => 'Str', );
-has password => ( is => 'rw', isa => 'Str', );
-has key      => ( is => 'rw', isa => 'Str', );
-has client   => ( is => 'rw', isa => 'REST::Client', );
+has app_id        => ( is => 'rw', isa => 'Str', required => 1, );
+has app_token     => ( is => 'rw', isa => 'Str', );
+has user_id       => ( is => 'rw', isa => 'Str' );
+has password      => ( is => 'rw', isa => 'Str', );
+has key           => ( is => 'rw', isa => 'Str', );
+has session_token => ( is => 'rw', isa => 'Str', );
+has session_key   => ( is => 'rw', isa => 'Str', );
+has user_agent    => ( is => 'ro', default => \&_make_user_agent );
+has info_cache    => ( is => 'rw', isa => 'App::Toodledo::InfoCache' );
+has account_info  => ( is => 'rw', isa => 'App::Toodledo::Account' );
+has task_cache    => ( is => 'rw', isa => 'App::Toodledo::TaskCache' );
 
+method get_session_token ( Str :$app_token?, Str :$user_id? ) {
+  my $app_id   = $self->app_id;
+  $user_id   ||= $self->user_id or croak "No user_id";
+  $app_token ||= $self->app_token or croak "No app_token";
+  $self->user_id( $user_id );
+  $self->app_token( $app_token );
 
-method login => positional (
-  { isa => 'Str', required => 1 },
-  { isa => 'Str', required => 1 }, ) => sub
-{
-  my ($self, $userid, $password) = @_;
-
-  $self->userid( $userid );
-  $self->password( $password );
-  $self->client( $self->_make_client( $HOST ) );
-  $self->key( $self->_make_key );
-};
-
-
-sub login_from_rc
-{
-  my $self = shift;
-
-  my $rcfile = $self->_rcfile;
-  _debug( "Getting login information from $rcfile\n" );
-  $self->login( $rcfile->{userid}, $rcfile->{password} );
+  my $session_token = $self->_session_token_from_cache( $user_id, $app_id,
+						        $app_token);
+  $self->session_token( $session_token );
+  $session_token;
 }
 
 
-sub _rcfile
-{
-  my $file = File::Spec->catfile( File::HomeDir->my_home, $RCFILE );
-  LoadFile( $file );
-}
-
-
-method foreach_task => positional (
-  { isa => 'CodeRef', required => 1 },
-  { isa => 'HashRef', default => {} } ) => sub
-{
-  my ($self, $callback, $optref) = @_;
-
-  my $context = $self->call_func( getTasks => $optref );
-  for my $element ($context->findnodes( 'tasks/task' ))
+method _session_token_from_cache ( Str $user_id!, Str $app_id!, Str $app_token! ) {
+  my $token_cache = $self->_token_cache;
+  my $session_token;
+  if ( my $token_info = $token_cache->valid_token( user_id => $user_id,
+						   app_id  => $app_id ) )
   {
-    my $task = _make_task( $element );
-    _debug( "Calling callback for task ID ", $task->id, "\n" );
-    $callback->( $self, $task );
+    debug( "Have valid saved token\n" );
+    $session_token = $token_info->token;
   }
-};
-
-
-sub _make_task
-{
-  my $element = shift;
-
-  my @nodes = $element->getChildrenByTagName( '*' );
-  my %arg = map { $_->nodeName, $_->textContent } @nodes;
-  my $task = App::Toodledo::Task->new;
-
-  # Protect against extra attributes being added before we can update
-  my %attr_map = map { $_, 1 } $task->_actual_attributes;
-  defined( $arg{$_} ) and $task->$_( _datemod( $_, $arg{$_} ) )
-    for grep { $attr_map{$_} } keys %arg;
-  $task;
-}
-
-
-sub get_folders
-{
-  my $self = shift;
-
-  my $context = $self->call_func( 'getFolders' );
-  my @folders;
-  for my $element ($context->findnodes( 'folders/folder' ))
+  else
   {
-    my $folder = App::Toodledo::Folder->new;
-    $folder->name( $element->textContent );
-    $folder->$_( $element->getAttribute( $_  ) )
-      for qw(id private archived order);
-    push @folders, $folder;
+    $session_token = $self->new_session_token( $app_token );
+    $token_cache->add_token_info( user_id => $user_id,
+				  app_id  => $app_id,
+				  token   => $session_token );
+    $token_cache->save;
   }
-  sort { $a->order <=> $b->order } @folders;
+  $session_token;
 }
 
 
-# Incoming date/datetimes get converted from strings to epoch times internally
-sub _datemod
-{
-  my ($what, $value) = @_;
-
-  return $value
-    unless $what =~ /\A(?:added|modified|startdate|duedate|completed)\Z/;
-
-  $value = str2time $value;
-  $value || '';
+method get_session_token_from_rc ( Str $user_id? ) {
+  $user_id ||= $self->user_id || $self->default_user_id
+    or croak "No user_id and no default user_id";
+  my $app_id = $self->app_id;
+  my $app_token = $self->app_token_of( $app_id )
+    or croak "Cannot get app_token for $app_id";
+  $self->get_session_token( app_token => $app_token, user_id => $user_id );
 }
 
 
-sub _make_key
-{
-  my $self = shift;
-
-  my $context = $self->call_func( 'getToken' );
-  $self->_key_from_context( $context );
+method _make_session_key ( Str $password!, Str $app_token!, Str $session_token! ) {
+  md5_hex( md5_hex( $password ) . $app_token . $session_token );
 }
 
 
-sub _single_token
-{
-  my ($self, $token, $context) = @_;
-
-  my ($element) = $context->findnodes( $token );
-  $element->textContent;
+method connect ( Str $password! ) {
+  my $session_token = $self->session_token
+    or croak "Need to get session token first";
+  my $key = $self->_make_session_key( $password, $self->app_token,
+				      $session_token );
+  $self->session_key( $key );
+  my $account_ref = $self->get( 'account' ) or croak "No account info";
+  $self->account_info( $account_ref );
+  $key;
 }
 
 
-sub _key_from_context
-{
-  my ($self, $context) = @_;
-
-  my $token = $self->_single_token( token => $context );
-  md5_hex( md5_hex( $self->password ) . $token . $self->userid );
+method login ( Str :$user_id, Str :$password!, Str :$app_token! ) {
+  $self->app_token( $app_token );
+  $self->get_session_token( user_id => $user_id, app_token => $app_token );
+  $self->connect( $password );
 }
 
 
-sub _make_client   # Overrideable for testing
-{
-  my $self = shift;
-
-  REST::Client->new( host => shift );
+method login_from_rc ( Str $user_id? ) {
+  my @args = $user_id ? $user_id : ();
+  $self->get_session_token_from_rc( @args );
+  my $password = $self->password_of( $self->user_id )
+    or croak "Cannot get password";
+  $self->connect( $password );
 }
 
 
-method call_func => positional (
-  { isa => 'Str', required => 1 },
-  { isa => 'HashRef', default => {} } ) => sub
+sub _token_cache
 {
-  my ($self, $func, $argref) = @_;
+  my $file = _token_cache_name();
 
-  my $client = $self->client or croak "Must login first";
-  _debug( "Calling function $func\n" );
-  $client->GET( $self->_make_path( $func, %$argref ) );
-  $client->responseCode != 200 and croak "Unable to contact Toodledo\n";
-  $client->responseContent =~ /(Excessive API token requests.*blocked)/s
-    and croak "$1\n";
-  my $doc = $client->responseXpath;
-  _context_from_doc( $doc );
-};
-
-
-# Somehow the behavior changed with REST::Client v134
-sub _context_from_doc
-{
-  #  my $doc = shift;
-
-  my $context = shift;   # XML::LibXML::XPathContext->new( $doc );
-  my ($error) = $context->findnodes( 'error' );
-  croak "API error: " . $error->textContent if $error;
-  $context;
+  App::Toodledo::TokenCache->new_from_file( $file );
 }
 
 
-sub _make_path
+sub _token_cache_name
 {
-  my $self = shift;
-  my $func = shift;
-  my %rest = @_;
-
-  my $path = "/api.php?method=$func;";
-  $path .= $self->key ? "key=" . $self->key : "userid=" . $self->userid;
-  $path .= ";$_=" . _mung_attr( $_, $rest{$_} ) for keys %rest;
-  _debug( "path = $path\n" );
-  $path;
+  File::Spec->catfile( home(), __PACKAGE__->Token_File_Name );
 }
 
 
-sub _mung_attr
-{
-  my ($attr, $value) = @_;
+method app_token_of ( Str $app_id! ) {
+  my $cache = $self->_get_info_cache;
+  $cache->app_token_ref->{$app_id};
+}
 
-  if ( $attr =~ /\A(?:title|tag)\Z/ )
+
+method password_of ( Str $user_id! ) {
+  my $cache = $self->_get_info_cache;
+  $cache->password_ref->{$user_id};
+}
+
+
+method default_user_id () {
+  my $cache = $self->_get_info_cache;
+  $cache->default_user_id;
+}
+
+
+method _get_info_cache () {
+  my $file = _info_cache_name();
+
+  $self->info_cache and return $self->info_cache;
+  debug( "Fetching info cache\n" );
+  my $cache = App::Toodledo::InfoCache->new_from_file( $file );
+  $self->info_cache( $cache );
+  $cache;
+}
+
+
+sub _info_cache_name
+{
+  File::Spec->catfile( home(), __PACKAGE__->Info_File_Name );
+}
+
+
+method new_session_token ( Str $app_token! ) {
+  my $sig    = $self->_signature( $self->user_id, $app_token );
+  my $argref = { appid  => $self->app_id,
+		 userid => $self->user_id,
+		 sig    => $sig };
+  debug( "Creating new session token\n" );
+  my $ref = $self->call_func( account => token => $argref );
+  $ref->{token};
+}
+
+
+method _signature( Str $user_id!, Str $app_token! ) {
+  md5_hex( "$user_id$app_token" );
+}
+
+
+method get ( Str $type!, %param ) {
+  my $class = __PACKAGE__ . '::' . ucfirst( $type );
+  $class =~ s/s\z//;
+  eval "require $class";
+
+  if ( $type eq 'tasks' )
   {
-    return _toodledo_encode( $value );
+    $param{fields} ||= join ',' => $class->optional_attributes;  # All fields
+    $param{start}  ||= 0;
   }
-  if ( $attr =~ /\A(?:(start|mod|comp)?(?:before|after))\Z/ )
+
+  my @things;
+  FETCH: {
+    my $ref = $self->call_func( $type => 'get', \%param );
+    my @returned = ref $ref eq 'ARRAY' ? @$ref : $ref;
+
+    my $counter = $type eq 'tasks' ? shift @returned : ();
+    push @things, map { $class->new( %$_ ) } @returned;
+    if ( $type eq 'tasks' && @returned )  # They have a different first field
+    {
+      if ( $param{start} + $counter->{num} != $counter->{total} )
+      {
+	debug( "Start = $param{start}, Total = $counter->{total}, "
+		. " Num = $counter->{num}\n" );
+	$param{start} += $counter->{num};
+	redo FETCH;
+      }
+    }
+  }  # FETCH
+
+  @things = sort { $a->ord <=> $b->ord } @things
+    if @things && $things[0]->{ord};
+  wantarray ? @things : shift @things;
+}
+
+
+sub _make_user_agent  # Might want to use Mechanize some day?
+{
+  LWP::UserAgent->new;
+}
+
+
+method call_func ( Str $func!, Str $subfunc!, HashRef $argref? ) {
+  my $user_agent = $self->user_agent;
+  $argref ||= {};
+  $argref->{key} = $self->session_key if $self->session_key;
+  debug( "Calling function $func/$subfunc\n" );
+  my %encoded_args = map { $_,  arg_encode( $argref->{$_} ) }
+                         keys %$argref;
+  my $res = $user_agent->post( "$ROOT_URL$func/$subfunc.php",
+			       \%encoded_args );
+  $res->code != 200 and croak "Unable to contact Toodledo\n";
+  my $ref = decode_json( $res->content ) or croak "Content invalid\n";
+
+  croak $ref->{errorCode} == 500 ? "Toodledo offline\n"
+                                 : "Error: " . $ref->{errorDesc}
+    if ref $ref eq 'HASH' && $ref->{errorCode};
+  $ref;
+}
+
+
+method select ( ArrayRef[Object] $o_ref, Str $expr ) {
+  my $prototype = $o_ref->[0] or return;
+
+  # XXX CODE SMELL: refactor to polymorphic method
+  if ( ref( $prototype ) =~ /task/i )
   {
-    my $type = $1 || '';
-    return $type eq 'mod' ? _toodledo_time( $value ) : _toodledo_date( $value );
+    $expr =~ s/(.*)/($1) && completed == 0/ unless $expr =~ /completed/;
+  }
+
+  $expr =~ s/$_/\$self->$_/g for $prototype->attribute_list;
+  debug( "Searching: $expr\n" );
+  my $selector = sub { my $self = shift; eval $expr };
+  $self->grep_objects( $o_ref, $selector );
+}
+
+
+method grep_objects ( ArrayRef[Object] $o_ref, CodeRef $selector ) {
+  grep { $selector->( $_ ) } @$o_ref;
+}
+
+
+# @args here is just for testing purposes. If used for real code, will
+# produce unexpected and erroneous results.
+method get_tasks_with_cache ( @args ) {
+  $self->task_cache_valid and return $self->task_cache->tasks;
+  # -1 => Completed & uncompleted tasks
+  my @tasks = $self->get( tasks => comp => -1, @args );
+  $self->store_tasks_in_cache( @tasks );
+  @tasks;
+}
+
+
+method task_cache_valid () {
+  my $ai = $self->account_info;
+  unless ( $self->task_cache )
+  {
+    $self->task_cache( App::Toodledo::TaskCache->new );
+    return unless $self->task_cache->exists;
+    $self->task_cache->fetch;
+  }
+
+  my $fetched = $self->task_cache->last_updated;
+  if ( $ai->lastedit_task >= $fetched || $ai->lastdelete_task >= $fetched )
+  {
+    debug( "Task cache invalid\n" );
+    return;
+  }
+  debug( "Task cache valid\n" );
+  return 1;
+}
+
+
+method store_tasks_in_cache ( App::Toodledo::Task @tasks ) {
+  $self->task_cache or $self->task_cache( App::Toodledo::TaskCache->new );
+  $self->task_cache->store( @tasks );
+}
+
+
+# Add a new whatever
+method add( Object $object! ) {
+  $object->add( $self );
+}
+
+
+method edit ( Object $object ) {
+  $object->edit( $self );
+}
+
+
+# Remove a whatever... it needs only have the id field populated
+method delete( Object $object ) {
+  $object->delete( $self );
+}
+
+
+method readable ( Object $object, Str $attribute ) {
+  my $value = $object->$attribute;
+  if ( $attribute =~ /date\z/ )
+  {
+    return preferred_date_format( $self->account_info->dateformat, $value );
   }
   $value;
 }
 
-
-sub _toodledo_encode
-{
-  local $_ = shift;
-
-  s/&/%26/g;
-  s/;/%3B/g;
-  $_;
-}
-
-
-sub _toodledo_time
-{
-  my $time = shift;
-
-  strftime( "%Y-%m-%d %T", localtime $time);
-}
-
-sub _toodledo_date
-{
-  my $time = shift;
-
-  strftime( "%Y-%m-%d", localtime $time);
-}
-
-
-method add_task => positional (
-  { isa => 'App::Toodledo::Task', required => 1 } ) => sub
-{
-  my ($self, $task) = @_;
-
-  $self->_add_a( task => $task->_for_api );
-};
-
-
-sub add_folder
-{
-  my ($self, $whatever, $private) = @_;
-
-  $whatever or croak "Must supply folder object or title";
-  my $title;
-  if (ref $whatever)
-  {
-    my $folder = $whatever;
-    ($title, $private) = ($folder->name, $folder->private);
-  }
-  else
-  {
-    $title = $whatever;
-  }
-  my %opt = (title => $title);
-  $opt{private} = $private if defined $private;
-  $self->_add_a( folder => \%opt );
-}
-
-
-sub add_context
-{
-  my ($self, $title) = @_;
-
-  $title or croak "Must supply title";
-  $self->_add_a( context => { title => $title } );
-}
-
-
-sub add_goal
-{
-  my ($self, $title, $level, $contrib) = @_;
-
-  $title or croak "Must supply title";
-  my %opt = (title => $title);
-  $opt{level} = $level if defined $level;
-  $opt{contributes} = $contrib if defined $contrib;
-  $self->_add_a( goal => \%opt );
-}
-
-
-sub _add_a
-{
-  my ($self, $what, $argref) = @_;
-
-  _debug( "Adding a $what\n" );
-  $self->_call_single( "add\L\u$what", added => $argref );
-}
-
-
-sub _call_single
-{
-  my ($self, $func, $token, $argref) = @_;
-
-  my $context = $self->call_func( $func, $argref );
-  $self->_single_token( $token => $context );
-}
-
-
-sub delete_task
-{
-  my $self = shift;
-  $self->_delete_a( task => shift );
-}
-
-
-sub delete_goal
-{
-  my $self = shift;
-  $self->_delete_a( goal => shift );
-}
-
-
-sub delete_folder
-{
-  my $self = shift;
-  $self->_delete_a( folder => shift );
-}
-
-sub delete_context
-{
-  my $self = shift;
-  $self->_delete_a( context => shift );
-}
-
-
-method _delete_a => positional (
-  { isa => 'Str', required => 1 },
-  { isa => 'Int', required => 1 } ) => sub
-{
-  my ($self, $what, $id) = @_;
-
-  _debug( "Deleting a $what\n" );
-  $self->_call_single( "delete\L\u$what", success => { id => $id } );
-};
-
-
-sub _debug
-{
-  print STDERR @_ if $ENV{APP_TOODLEDO_DEBUG};
-}
 
 1;
 
@@ -367,21 +343,32 @@ App::Toodledo - Interacting with the Toodledo task management service.
 
     use App::Toodledo;
 
-    my $todo = App::Toodledo->new();
-    $todo->login_from_rc;
-    my %search_opts = ( notcomp => 1, before => time );  # Already expired
-    $todo->foreach_task( \&per_task, \%search_opts );
+    my $todo = App::Toodledo->new( user_id => 'rudolph', app_id => 'MyAppID' );
+    $todo->login( password => 'secret', app_token => 'api2729372' )
 
-    sub per_task {
-        my ($self, $task) = @_;
-        print $task->title, ": due on " . localtime( $task->duedate );
-    }
+    $todo = App::Toodledo->new( app_id => 'MyAppID' );
+    $todo->login_from_rc;
+
+    my @folders = $todo->get( 'folders' );
+    my @tasks   = $todo->get_tasks_with_cache;
+    my $time = time;
+    my @wanted  = $todo->select( \@tasks, "duedate < $time + $ONEDAY && duedate  > $time" );   # Tasks due in next day
+    my @privates = $todo->select( \@folders, "private > 0" );
 
 =head1 DESCRIPTION
 
 Toodledo (L<http://www.toodledo.com/>) is a web-based capability for managing
 to-do lists along Getting Things Done (GTD) lines.  This module
 provides a Perl-based access to its API.
+
+THIS MODULE IS NOT BACKWARDS COMPATIBLE WITH ANY PREVIOUS VERSIONS.
+
+B<This version is a minimal port to version 2 of the Toodledo API.
+It is not at all backwards compatible with version 0.07 or earlier of this
+module.>
+Toodledo now frowns upon using version 1 of the API; not using an
+application token makes it almost impossible to get anything useful
+done.
 
 What do you need the API for?  Doesn't the web interface do everything
 you want?  Not always.  See the examples included with this distribution.
@@ -396,116 +383,207 @@ sufficiently motivated, I'll let you take over the whole thing.
 
 =head1 METHODS
 
-=head2 $todo = App::Toodledo->new;
+=head2 $todo = App::Toodledo->new( %option );
 
-Construct a new Toodledo handle.  This call does not contact the
-service.
-
-=head2 $todo->login( $userid, $password )
-
-"Login" to Toodledo. The userid is the long string on your Toodledo
-account's "Settings" page.
-
-=head2 $todo->login_from_rc
-
-Same as C<login>, only obtains the userid and password from a YAML
-file in your home directory called C<.toodledorc>.  The attributes
-C<userid> and C<password> must be set, like this:
-
-  ---
-  userid: td94d4b473d171f
-  password: secret
-
-=head2 $todo->call_func( $function, $argref )
-
-Call an arbitrary Toodledo API function C<$function>.  Use this for any
-function not wrapped in a more convenient method below.  Arguments
-are supplied via a hashref.  Examples:
-
-  $context = $todo->call_func( 'getAccountInfo'  );
-  $context = $todo->call_func( getUserid => { email => $email, pass => $pass })
-
-The result is an L<XML::LibXML::Element>.  See the CPAN documentation
-for that class and its superclass, L<XML::LibXML::Node>.  The
-C<findnodes> and C<getChildrenByTagName> methods are particularly useful.
-
-=head2 $todo->foreach_task( \&callback, [ \%search_opts ] )
-
-Run the subroutine C<callback> for every task that matches the
-search criteria in C<%search_opts>.  The callback will be called with
-two arguments: the C<$todo> object and a L<App::Toodledo::Task> object.
-The search options are as described in the Toodledo API documentation
-for the C<getTasks> call, with the following modifications:
+Construct a new Toodledo handle.  No connection to the service is made.
+The app_id entry in the option hash is mandatory.  Other options are:
 
 =over 4
 
-=item *
+=item app_token
 
-The C<title> and C<tag> arguments will be encoded for you;
+Application token.
 
-=item *
+=item user_id
 
-The C<before>, C<after>, C<startbefore>, C<modbefore>, C<compbefore>,
-C<startafter>, C<modafter>, and C<compafter> arguments should be
-integer epoch times such as returned by C<time>.  They will be
-converted to the required format for you.
+User ID.
 
 =back
 
-=head2 @folders = $todo->get_folders
+=head2 $todo->get_session_token( user_id => $user_id, app_token => $app_token )
 
-Return a list of L<App::Toodledo::Folder> objects, ordered by their
-C<order> attribute.
+This call creates a session token and caches it in a file in your home
+directory called C<.toodledo_token>, unless that file already exists and
+contains a token younger than three hours, in which case
+that one will be used.  The
+published lifespan of a Toodledo token is four hours.  The
+C<$app_token> must be the token given to you by the Toodledo site when
+you registered the application that this code is running. The user_id is
+the long string on your Toodledo account's "Settings" page.
 
-=head2 $id = $todo->add_task( $task )
+If the user_id is not supplied here it must have been given in the
+constructor.  Ditto for the app_token.
 
-The argument should be a new L<App::Toodledo::Task> object to be created.
-The result is the id of the new task.
+=head2 $todo->get_session_token_from_rc( [ $user_id ] )
 
-=head2 $id = $todo->add_context( $title )
+Same as C<get_session_token>, only it obtains the arguments
+from a YAML file in your home directory called C<.toodledorc>.
+See the FILES section below for instructions on how to format
+and populate that file.  If no C<user_id> is specified it will
+look for and use a C<default_user_id> in the .toodledorc file.
 
-Add a context with the given title.
+=head2 $todo->login( %option )
 
-=head2 $id = $todo->add_folder( $title_or_folder, [ $private ] )
+The C<%option> hash must include the entries for C<password>
+and C<app_token>.  Optionally it can include C<user_id>; if not
+specified here, it must have been sent in the constructor.
 
-Add a folder with the given title.  C<$private> if supplied must be either
-0 (default) or 1, which signifies that the folder is to be private.
-If the first argument is an L<App::Toodledo::Folder> object, the title
-and private attributes will be taken from it.
+=head2 $todo->login_from_rc( [$user_id] )
 
-=head2 $id = $todo->add_goal( $title, [ $level, [ $contributes ] ] )
+Optionally specify the user_id, else the same rules apply as for
+C<get_session_token_from_rc>. The password will be taken from the
+one associated with that user_id in the .toodledorc file.
 
-Add a goal with the given title.  The C<$level> if supplied should be
-0 (default), 1, or 2, signifying goal span (0=lifetime, 1=long-term,
-2=short-term).  If C<$contributes> is supplied, it should be the id of
-a higher-level goal that this goal contributes to.
+=head2 $todo->call_func( $function, $subfunction, $argref )
 
-=head2 $success = $todo->delete_task( $id )
+Low-level Toodledo API access.  You should not need to use this unless
+you're extending the App::Toodledo::Account functionality. (Please
+contribute patches.)  C<$argref> is a hashref of arguments to the
+call.  Refer to the Toodledo API documentation for formatting and
+encoding.
 
-Delete the task with the given C<$id>.  The result is a boolean for the
-success of the operation.
+=head2 $app_token = $todo->app_token_of( $app_id )
 
-=head2 $success = $todo->delete_goal( $id )
+Convenience function for returning the application token of a given
+application id by reading it from the .toodledorc file.
 
-Delete the goal with the given C<$id>.  The result is a boolean for the
-success of the operation.
+=head2 $password = $todo->password_of( $user_id )
 
-=head2 $success = $todo->delete_context( $id )
+Convenience function for returning the password for a given
+user_id by reading it from the .toodledorc file.
 
-Delete the context  with the given C<$id>.  The result is a boolean for the
-success of the operation.
+=head2 $user_id = $todo->default_user_id
 
-=head2 $success = $todo->delete_folder( $id )
+Convenience function for returning the default user_id by
+reading it from the .toodledorc file.
 
-Delete the folder  with the given C<$id>.  The result is a boolean for the
-success of the operation.
+$token = $todo->new_session_token( $app_token )
+
+Return the temporary session token given the application token.
+The user_id and app_id are read from the object.
+
+=head2 @objects = $todo->get( $type )
+
+Fetch and return a list of some kind of thing, the choices being the following
+strings:
+
+=over 4
+
+=item tasks
+
+=item folders
+
+=item goals
+
+=item contexts
+
+=item notebooks
+
+=back
+
+The returned list will be of the corresponding App::Toodledo::I<whatever>
+objects.  There are optional arguments for tasks:
+
+=head2 @tasks = $todo->get( tasks => %param )
+
+The optional named parameters correspond to the parameters that can be
+specified in the Toodledo tasks/get API call: modbefore, modafter,
+comp, start, num, fields.  Note that this call will not cache the
+tasks returned, so it is safe to play with these parameters.  This
+method will default C<fields> to all available fields.  It does I<not>
+change C<comp>, which the Toodledo API defaults to all uncompleted tasks
+only.
+
+@tasks = $todo->get_tasks_with_cache( %param )
+
+Same as get( tasks => %param ), except that the tasks are fetched from
+the cache file C<~/.toodledo_task_cache> if it is still valid (Toodledo
+reports no changes since cache update).  If there is no cache file, it
+is populated after the tasks are fetched from Toodledo.
+
+=head2 $id = $todo->add( $object )
+
+The argument should be a new App::Toodledo::whatever object to be created.
+The result is the id of the new object. Any of the standard object types
+can be added.
+
+=head2 $todo->delete( $object )
+
+Delete the given object from Toodledo. The C<id> attribute of the object
+must be correctly set. No other attributes will be used.
+
+=head2 $todo->edit( $object )
+
+The given object will be updated in Toodledo to match the one passed.
+
+=head2 @objects = $todo->select( \@objects, $expr );
+
+Select just the objects you need from the given array, based upon the
+expression.  Any attribute of the givem objects specified in the exprssion
+will br turned into an object accessor for that attribute and the resulting
+expression must be syntactically correct.  Any Perl code can be used; it will
+be passed through C<eval>.  Examples:
+
+=over 4
+
+=item tag eq "garden" && status > 3
+
+Must have the 'garden' tag (and only that tag) amd a status higher
+than the 'Planning' status.  (Only makes sense for a task list.)
+
+=item title =~ /deliver/i && comp == 1
+
+Title must match regex and task must be completed.
+
+=back
+
+The type of object is determined from the first one in the arrayref.
+
+=head2 $todo-.readable( $object, $attribute )
+
+Currently just looks to see if the given C<$attribute> of C<$object>
+is a date and if so, returns the C<preferred_date_formst> string
+from L<App::Toodledo::Util> instead of the stored epoch second count.
 
 =head1 ERRORS
 
-Any API call may croak if it returns an error.  A common cause of this
-would be making too many API calls within an hour.  The limit seems to be
-reached much faster than you would think based on Toodledo's claims for
-what that limit is.  Just wait an hour if you hit this limit.
+Any API call may croak if it returns an error. 
+
+=head1 FILES
+
+=head2 ~/.toodledo_token
+
+This file is in YAML format and caches the session token for one or
+more application ids.  You should not need to edit it.
+
+=head2 ~/.toodledorc
+
+This file is in YAML format and is where you keep information to save
+having to enter it in login calls.  It is not written by App::Toodledo.
+It is of the following format:
+
+  ---
+  app_tokens:
+    <app_id>: <app_token>
+  default_user_id: <user_id>
+  passwords:
+    <user_id>: <password>
+
+The app_id line may be repeated for as many application ids that you have.
+It supplies the application token corresponding to each app_id.  Since
+the app_id is a mnemonic string like 'cpantest' and the app_token is
+a hex identifier supplied by Toodledo like 'api4e49ce90e5c31', this saves
+the trouble of copying arcane strings into every program.
+The password line may be repeated for as many user ids that you want
+to manage.
+The default_user_id is optional and will be used if none is specified
+in a login call.
+
+=head2 ~/.toodledo_task_cache
+
+This file is in YAML format and is used by App::Toodledo to store a
+cache of tasks.  You should not need to edit it.  If App::Toodledo is
+using this cache and you believe it to be invalid, delete this file.
 
 =head1 ENVIRONMENT
 
@@ -525,6 +603,11 @@ L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=App-Toodledo>.
 I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
 
+Realistically, I am not likely to have the time to respond to any bug
+reports that don't impact code I use personally unless they include
+complete fixes in the form of a patch file.  New functionality should
+include documentation and test patches.
+
 =head1 TODO
 
 Help improve App::Toodledo!  Some low-hanging fruit you might want to
@@ -534,23 +617,21 @@ submit a patch for:
 
 =item *
 
-Use the new C<unix> parameter to C<getTasks> to simplify date fetching.
+Improve task caching to not be all-or-nothing.  Use SQLite and check
+only for which tasks need to be added or removed.
 
 =item *
 
-Implement the C<getContexts> call to an C<App::Toodledo::Context> object.
+Bulk addition of tasks.
 
 =item *
 
-Ditto for goals.
+Flesh out the L<App::Toodledo::Account> class with the methods
+for querying an account.
 
 =item *
 
-Implement the C<editTask> and C<editFolder> calls.
-
-=item *
-
-Implement task caching to avoid hitting API limits.
+Addition of enumerated type for statuses.
 
 =back
 
@@ -584,13 +665,13 @@ L<http://search.cpan.org/dist/App-Toodledo/>
 
 =head1 SEE ALSO
 
-Toodledo API documentation: L<http://www.toodledo.com/info/api_doc.php>.
+Toodledo API documentation: L<http://api.toodledo.com/2/account/>.
 
 Getting Things Done, David Allen, ISBN 978-0142000281.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2009 Peter J. Scott, all rights reserved.
+Copyright 2009 - 2011 Peter J. Scott, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
