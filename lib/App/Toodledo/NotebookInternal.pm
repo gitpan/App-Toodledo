@@ -2,7 +2,6 @@ package App::Toodledo::NotebookInternal;
 
 use Carp;
 use Moose;
-use MooseX::Method;
 
 with 'App::Toodledo::NotebookRole';
 

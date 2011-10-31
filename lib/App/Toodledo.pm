@@ -2,7 +2,7 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '2.00';
+our $VERSION = '2.01';
 
 use Carp;
 use File::Spec;
@@ -352,7 +352,10 @@ App::Toodledo - Interacting with the Toodledo task management service.
     my @folders = $todo->get( 'folders' );
     my @tasks   = $todo->get_tasks_with_cache;
     my $time = time;
-    my @wanted  = $todo->select( \@tasks, "duedate < $time + $ONEDAY && duedate  > $time" );   # Tasks due in next day
+
+    # Tasks due in next day
+    my @wanted  = $todo->select( \@tasks,
+                  "duedate < $time + $ONEDAY && duedate  > $time" );
     my @privates = $todo->select( \@folders, "private > 0" );
 
 =head1 DESCRIPTION
@@ -386,9 +389,13 @@ sufficiently motivated, I'll let you take over the whole thing.
 =head2 $todo = App::Toodledo->new( %option );
 
 Construct a new Toodledo handle.  No connection to the service is made.
-The app_id entry in the option hash is mandatory.  Other options are:
+Options are:
 
 =over 4
+
+=item app_id
+
+Application ID.  See the Toodledo API documentation for details.
 
 =item app_token
 
@@ -399,6 +406,9 @@ Application token.
 User ID.
 
 =back
+
+The app_id entry in the option hash is mandatory.  The others may be
+left out and supplied elsewhere.
 
 =head2 $todo->get_session_token( user_id => $user_id, app_token => $app_token )
 
@@ -494,7 +504,7 @@ method will default C<fields> to all available fields.  It does I<not>
 change C<comp>, which the Toodledo API defaults to all uncompleted tasks
 only.
 
-@tasks = $todo->get_tasks_with_cache( %param )
+=head2 @tasks = $todo->get_tasks_with_cache( %param )
 
 Same as get( tasks => %param ), except that the tasks are fetched from
 the cache file C<~/.toodledo_task_cache> if it is still valid (Toodledo
@@ -539,7 +549,7 @@ Title must match regex and task must be completed.
 
 The type of object is determined from the first one in the arrayref.
 
-=head2 $todo-.readable( $object, $attribute )
+=head2 $todo->readable( $object, $attribute )
 
 Currently just looks to see if the given C<$attribute> of C<$object>
 is a date and if so, returns the C<preferred_date_formst> string

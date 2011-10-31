@@ -2,7 +2,6 @@ package App::Toodledo::LocationInternal;
 
 use Carp;
 use Moose;
-use MooseX::Method;
 
 with 'App::Toodledo::LocationRole';
 

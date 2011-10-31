@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               App-Toodledo
-version:            2.00
+version:            2.01
 abstract:           Interacting with the Toodledo task management service.
 author:
     - Peter J. Scott <cpan@psdt.com>
@@ -15,10 +15,10 @@ requires:
     Digest::MD5:          0
     File::HomeDir:        0
     JSON:                 0
+    LWP::UserAgent:       0
     Moose:                0.93
     MooseX::ClassAttribute:  0.12
     MooseX::Method::Signatures:  0
-    Readonly:             0
     Test::Exception:      0
     Test::MockModule:     0
     Test::MockObject:     1.20110612

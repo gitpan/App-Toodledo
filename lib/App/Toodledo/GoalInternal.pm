@@ -2,7 +2,6 @@ package App::Toodledo::GoalInternal;
 
 use Carp;
 use Moose;
-use MooseX::Method;
 
 with 'App::Toodledo::GoalRole';
 
