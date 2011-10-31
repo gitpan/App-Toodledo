@@ -2,7 +2,7 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '2.01';
+our $VERSION = '2.02';
 
 use Carp;
 use File::Spec;
@@ -116,6 +116,7 @@ method login_from_rc ( Str $user_id? ) {
   $self->get_session_token_from_rc( @args );
   my $password = $self->password_of( $self->user_id )
     or croak "Cannot get password";
+  debug( "Loaded password from info cache\n" );
   $self->connect( $password );
 }
 
@@ -256,7 +257,7 @@ method select ( ArrayRef[Object] $o_ref, Str $expr ) {
   }
 
   $expr =~ s/$_/\$self->$_/g for $prototype->attribute_list;
-  debug( "Searching: $expr\n" );
+  debug( "Searching in " . @$o_ref . "objects for '$expr'\n" );
   my $selector = sub { my $self = shift; eval $expr };
   $self->grep_objects( $o_ref, $selector );
 }
@@ -363,8 +364,6 @@ App::Toodledo - Interacting with the Toodledo task management service.
 Toodledo (L<http://www.toodledo.com/>) is a web-based capability for managing
 to-do lists along Getting Things Done (GTD) lines.  This module
 provides a Perl-based access to its API.
-
-THIS MODULE IS NOT BACKWARDS COMPATIBLE WITH ANY PREVIOUS VERSIONS.
 
 B<This version is a minimal port to version 2 of the Toodledo API.
 It is not at all backwards compatible with version 0.07 or earlier of this
@@ -509,22 +508,26 @@ only.
 Same as get( tasks => %param ), except that the tasks are fetched from
 the cache file C<~/.toodledo_task_cache> if it is still valid (Toodledo
 reports no changes since cache update).  If there is no cache file, it
-is populated after the tasks are fetched from Toodledo.
+is populated after the tasks are fetched from Toodledo.  This fetches
+all tasks, including completed ones, so can take a while.
 
 =head2 $id = $todo->add( $object )
 
-The argument should be a new App::Toodledo::whatever object to be created.
+The argument should be a new App::Toodledo::I<whatever> object to be created.
 The result is the id of the new object. Any of the standard object types
 can be added.
+Note: this method is overridden in App::Toodledo::Task.
 
 =head2 $todo->delete( $object )
 
 Delete the given object from Toodledo. The C<id> attribute of the object
 must be correctly set. No other attributes will be used.
+Note: this method is overridden in App::Toodledo::Task.
 
 =head2 $todo->edit( $object )
 
 The given object will be updated in Toodledo to match the one passed.
+Note: this method is overridden in App::Toodledo::Task.
 
 =head2 @objects = $todo->select( \@objects, $expr );
 
@@ -536,10 +539,10 @@ be passed through C<eval>.  Examples:
 
 =over 4
 
-=item tag eq "garden" && status > 3
+=item tag eq "garden" && status eq "Planning"
 
-Must have the 'garden' tag (and only that tag) amd a status higher
-than the 'Planning' status.  (Only makes sense for a task list.)
+Must have the 'garden' tag (and only that tag) amd a status of
+'Planning'.  (Only makes sense for a task list.)
 
 =item title =~ /deliver/i && comp == 1
 
@@ -557,7 +560,7 @@ from L<App::Toodledo::Util> instead of the stored epoch second count.
 
 =head1 ERRORS
 
-Any API call may croak if it returns an error. 
+Any API call may croak if it returns an error.
 
 =head1 FILES
 
@@ -639,11 +642,47 @@ Bulk addition of tasks.
 Flesh out the L<App::Toodledo::Account> class with the methods
 for querying an account.
 
-=item *
-
-Addition of enumerated type for statuses.
-
 =back
+
+=head1 EXAMPLES
+
+To find all tasks with the 'Home' context and add a 'DIY' tag if not there:
+
+  use App::Toodledo;
+  my $todo = App::Toodledo->new( app_id => 'myregisteredappid' );
+  $todo->login_from_rc;
+  my @all_tasks = $todo->get_tasks_from_cache;
+  for my $task ( $todo->select( \@tasks, 'context eq "Home" ) )
+  {
+    next if grep { $_ eq 'DIY' } $task->tags;
+    $task->tag( $task->tag . ',DIY' );
+    $todo->edit( $task );
+  }
+
+Feel free to contribute more examples as short and complete as that one
+via email!
+
+=head1 OBJECT MODEL
+
+App::Toodledo is Moose-based.  Each of the object types (task, folder,
+context, goal, location, notebook, and the account singleton) is
+represented via an object class App::Toodledo::Task, App::Toodledo::Folder,
+etc.  Each one of those classes contains each Toodledo attribute as
+a writable attribute, e.g. $task->context( 'foo' ). Additional methods
+can be added (e.g., 'tags' is a simple convenience method for
+App::Toodledo::Task) in each of those classes; the Toodledo attributes
+are handled by being delegated to an internal object (e.g.,
+App::Toodledo::TaskInternal) which implements a Role (e.g.,
+App::Toodledo::TaskRole) that contains precisely and only the list
+of Toodledo attributes.
+
+Therefore when Toodledo changes its attribute lists, change only
+the corresponding Role class and everything will continue working.
+You can add methods to the object class (e.g. App::Toodledo::Task)
+without the class being cluttered with native Toodledo attributes.
+You can override a Toodledo attribute if you ensure that the
+base functionality still works; just call the method in the
+delegated object directly.  (This delegate is named 'object'.)
 
 =head1 SUPPORT
 

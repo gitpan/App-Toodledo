@@ -15,6 +15,32 @@ BEGIN { class_type 'App::Toodledo' };
 
 extends 'App::Toodledo::InternalWrapper';
 
+my %ENUM_STRING = ( status => {
+		     0 => 'None',
+		     1 => 'Next Action',
+		     2 => 'Active',
+		     3 => 'Planning',
+		     4 => 'Delegated',
+		     5 => 'Waiting',
+		     6 => 'Hold',
+		     7 => 'Postponed',
+		     8 => 'Someday',
+		     9 => 'Canceled',
+		     10 => 'Reference',
+		    },
+		    priority => {
+		       -1 => 'Negative',
+		       0  => 'Low',
+		       1  => 'Medium',
+		       2  => 'High',
+		       3  => 'Top',
+		    }
+		  );
+my %ENUM_INDEX = (
+		  status   => { reverse %{ $ENUM_STRING{status}   } },
+		  priority => { reverse %{ $ENUM_STRING{priority} } },
+		 );
+
 # TODO: Figure out how to put this attribute in the wrapper:
 has object => ( is => 'ro', isa => 'App::Toodledo::TaskInternal',
 	        default => sub { App::Toodledo::TaskInternal->new },
@@ -30,6 +56,29 @@ method title ( @args ) {
 
 method note ( @args ) {
   toodledo_decode( $self->object->note( @args ) );
+}
+
+
+method status ( Item $new_status? ) {
+  $self->set_enum( status => $new_status );
+}
+
+method priority ( Item $new_priority? ) {
+  $self->set_enum( priority => $new_priority );
+}
+
+method set_enum ( Str $type!, Item $new_value? ) {
+  my @args;
+  if ( $new_value )
+  {
+    defined( my $index = $ENUM_INDEX{$type}{$new_value} )
+      or croak "\u$type $new_value not valid";
+    push @args, $index;
+  }
+  my $index = $self->object->$type( @args );
+  my $string = $ENUM_STRING{$type}{$index}
+    or croak "Toodledo returned invalid $type index $index";
+  $string;
 }
 
 
@@ -89,16 +138,26 @@ module.
 
 =head1 METHODS
 
-=head2 tags
+=head2 @tags = $task->tags
 
+Return the tags of the task as a list (splits the attribute on comma).
+
+=head2 $task->status, $task->priority
+
+Each of these methods operates on the string defined at
+http://api.toodledo.com/2/tasks/index.php, not the integer.
+The string will be turned into the integer going into Toodledo
+and the integer will get turned into the string coming out.
+Examples:
+
+  $task->priority( 'Top' )
+  $task->status eq 'Hold' and ...
 
 =head1 CAVEAT
 
-This is a very basic implementation of Toodledo tasks.  It only
-represents the contents of elements and does not capture the
-attributes of the few elements in Toodledo tasks that can have them.
-This is likely to have the most ramifications for programs working
-on repeating tasks.
+This is a very basic implementation of Toodledo tasks.  It is missing
+much that would be helpful with dealing with repeating tasks.  Patches
+welcome.
 
 =head1 AUTHOR
 

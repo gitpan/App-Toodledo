@@ -23,5 +23,11 @@ Revision history for App-Toodledo
 0.07	Feb 11, 2010
 	Check for excessive token requests.
 
-2.00    Oct 31, 2011
+2.00    Oct 30, 2011
         Complete rewrite for API V2.
+
+2.01    Oct 31, 2011
+        Revisions to pass smoke tests.
+
+2.02    Nov 1, 2011
+        Added enumerated types for status, priority.

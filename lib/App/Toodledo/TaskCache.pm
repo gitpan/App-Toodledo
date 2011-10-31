@@ -20,6 +20,7 @@ sub _cache_filename
 
 method exists () {
   -s _cache_filename() or return;
+  debug( "Task cache exists\n" );
 }
 
 
