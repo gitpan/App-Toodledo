@@ -6,6 +6,8 @@ use MooseX::ClassAttribute;
 use App::Toodledo::Util qw(home debug);
 use YAML qw(LoadFile DumpFile);
 
+our $VERSION = '1.00';
+
 has tasks          => ( is => 'rw', isa => 'ArrayRef[App::Toodledo::Task]',
 		        auto_deref => 1 );
 has last_updated   => ( is => 'rw', isa => 'Int' );  # Timestamp

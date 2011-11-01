@@ -2,13 +2,13 @@ package App::Toodledo::Task;
 use strict;
 use warnings;
 
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 
 use Carp;
 use Moose;
 use MooseX::Method::Signatures;
 use App::Toodledo::TaskInternal;
-use App::Toodledo::Util qw(toodledo_decode toodledo_encode);
+use App::Toodledo::Util qw(toodledo_decode debug toodledo_encode);
 
 use Moose::Util::TypeConstraints;
 BEGIN { class_type 'App::Toodledo' };
@@ -29,11 +29,11 @@ my %ENUM_STRING = ( status => {
 		     10 => 'Reference',
 		    },
 		    priority => {
-		       -1 => 'Negative',
-		       0  => 'Low',
-		       1  => 'Medium',
-		       2  => 'High',
-		       3  => 'Top',
+		      -1 => 'Negative',
+		       0 => 'Low',
+		       1 => 'Medium',
+		       2 => 'High',
+		       3 => 'Top',
 		    }
 		  );
 my %ENUM_INDEX = (
@@ -82,8 +82,80 @@ method set_enum ( Str $type!, Item $new_value? ) {
 }
 
 
+# XXX Factor out duplication in next 4 methods
+method folder_name ( App::Toodledo $todo!, Item $new_folder? ) {
+  $self->set_name( $todo, folder => $new_folder );
+}
+
+method context_name ( App::Toodledo $todo!, Item $new_context? ) {
+  $self->set_name( $todo, context => $new_context );
+}
+
+method goal_name ( App::Toodledo $todo!, Item $new_goal? ) {
+  $self->set_name( $todo, goal => $new_goal );
+}
+
+method location_name ( App::Toodledo $todo!, Item $new_location? ) {
+  $self->set_name( $todo, location => $new_location );
+}
+
+
+our $can_use_cache;  # See App::Toodledo::foreach()
+my %cache;
+
+method set_name( App::Toodledo $todo!, Str $type!, Item $new_string? ) {
+  my @args;
+  my $class = "App::Toodledo::\u$type";
+  eval "require $class";
+  my @objs;
+  if ( $can_use_cache )
+  {
+    @objs = @{ $cache{$type} };
+    debug( "Using cached ${type}s\n" );
+  }
+  else
+  {
+    debug( "Fetching ${type}s\n" );
+    @objs = $todo->get( $type.'s' );
+    $cache{$type} = \@objs;
+    $can_use_cache = 0;
+  }
+  if ( defined $new_string )   # Find the new object in list of available
+  {
+    my $id;
+    if ( $new_string eq '' )
+    {
+      $id = 0;
+    }
+    else
+    {
+      my ($obj) = grep { $_->name eq $new_string } @objs
+	or croak "Could not find a $type with name '$new_string'";
+      $id = $obj->id;
+    }
+    $self->object->$type( $id );
+    return $new_string;
+  }
+
+  my $id = $self->$type or return '';
+  my ($obj) = grep { $_->id == $id } @objs
+    or croak "Could not find existing $type $id in global list!";
+  $obj->name;
+}
+
+
 method tags {
   split /,/, $self->tag;
+}
+
+
+method has_tag ( Str $tag! ) {
+  grep { $_ eq $tag } $self->tags;
+}
+
+
+method add_tag ( Str $tag! ) {
+  $self->tag( $self->tag . ",$tag" ) unless $self->has_tag( $tag );
 }
 
 
@@ -103,10 +175,19 @@ method optional_attributes ( $class: ) {
 }
 
 
-method edit ( App::Toodledo $todo! ) {
-  my %param = %{ $self->object };
-  my $edited_ref = $todo->call_func( tasks => edit => { tasks => \%param } );
-  $edited_ref->[0]{id};
+method edit ( App::Toodledo $todo!, Object @more ) {
+  if ( @more )
+  {
+    my @edited = map { +{ %{ $_->object } } } ( $self, @more );
+    my $edited_ref = $todo->call_func( tasks => edit => { tasks => \@edited } );
+    return map { $_->{id} } @$edited_ref;
+  }
+  else
+  {
+    my %param = %{ $self->object };
+    my $edited_ref = $todo->call_func( tasks => edit => { tasks => \%param } );
+    return $edited_ref->[0]{id};
+  }
 }
 
 
@@ -142,6 +223,14 @@ module.
 
 Return the tags of the task as a list (splits the attribute on comma).
 
+=head2 $task->has_tag( $tag )
+
+Return true if the tag C<$tag> is in the list returned by C<tags()>.
+
+=head2 $task->add_tag( $tag )
+
+Add the given tag.  No-op if the task already has that tag.
+
 =head2 $task->status_str, $task->priority_str
 
 Each of these methods operates on the string defined at
@@ -154,6 +243,19 @@ Examples:
   $task->status_str eq 'Hold' and ...
 
 Each method can be used in a App::Toodledo::select call.
+
+=head2 $task->folder_name, $task->context_name, $task->location_name, $task->goal_name
+
+Each of these methods returns and optionally sets the given attribute via
+its name rather than the indirect ID that is stored in the task.  An
+exception is thrown if no object with that name exists when setting it.
+Examples:
+
+  $task->folder_name( $todo, 'Later' );
+  $task->context_name( $todo ) eq 'Home' and ...
+
+NOTE: An App::Toodledo object must be passed as the first parameter
+so it can look up the mapping of objects to names.
 
 =head1 CAVEAT
 

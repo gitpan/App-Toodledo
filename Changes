@@ -35,3 +35,6 @@ Revision history for App-Toodledo
 2.03    Nov 1, 2011
  	Revised enumerated types method names to give
  	access to native integer types back.
+
+2.04    Nov 1, 2011
+	Fixed problem with Variable names cannot contain ::.

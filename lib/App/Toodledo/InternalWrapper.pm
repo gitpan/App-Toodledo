@@ -1,8 +1,11 @@
 package App::Toodledo::InternalWrapper;
 
 use Carp;
+use Package::Stash;
 use Moose;
 use MooseX::Method::Signatures;
+
+our $VERSION = '1.01';
 
 # Because delegation doesn't get attributes
 sub BUILD
@@ -27,9 +30,11 @@ sub attribute_list
 
   no strict 'refs';
   ref $class and $class = ref $class;
-  @{*{"${class}::ATTRS"}} and return @{*{"${class}::ATTRS"}};
+  my $array = '@ATTRS';
+  my $stash = Package::Stash->new( $class );
+  $stash->has_symbol( $array ) and return @{ $stash->get_symbol( $array ) };
   my @attrs = grep { $_ ne 'meta' } $meta->get_attribute_list;
-  *{"${class}::ATTRS"} = \@attrs;
+  $stash->add_symbol( $array, \@attrs );
   @attrs;
 }
 

@@ -2,7 +2,7 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '2.03';
+our $VERSION = '2.04';
 
 use Carp;
 use File::Spec;
@@ -268,6 +268,15 @@ method grep_objects ( ArrayRef[Object] $o_ref, CodeRef $selector ) {
 }
 
 
+method foreach ( ArrayRef[Object] $o_ref, CodeRef $callback, @args ) {
+  for ( @$o_ref )
+  {
+    $callback->( $_, @args );
+    $App::Toodledo::Task::can_use_cache = 1;
+  }
+}
+
+
 # @args here is just for testing purposes. If used for real code, will
 # produce unexpected and erroneous results.
 method get_tasks_with_cache ( @args ) {
@@ -289,12 +298,15 @@ method task_cache_valid () {
   }
 
   my $fetched = $self->task_cache->last_updated;
+  my $logstr = "Edited: " . localtime( $ai->lastedit_task )
+             . ", Deleted: " . localtime( $ai->lastdelete_task )
+             . " Fetched: " . localtime( $fetched );
   if ( $ai->lastedit_task >= $fetched || $ai->lastdelete_task >= $fetched )
   {
-    debug( "Task cache invalid\n" );
+    debug( "Task cache invalid ($logstr)\n" );
     return;
   }
-  debug( "Task cache valid\n" );
+  debug( "Task cache valid ($logstr)\n" );
   return 1;
 }
 
@@ -311,8 +323,8 @@ method add( Object $object! ) {
 }
 
 
-method edit ( Object $object ) {
-  $object->edit( $self );
+method edit ( Object $object, @more ) {
+  $object->edit( $self, @more );
 }
 
 
@@ -554,6 +566,18 @@ Title must match regex and task must be completed.
 
 The type of object is determined from the first one in the arrayref.
 
+=head2 @objects = $todo->grep_objects( \@objects, $coderef )
+
+Run $coderef for each object in the list.  Called by the
+C<select> method but can be used by the user.  Ones for which
+the C<$coderef> returns true will be passed through to the result.
+
+=head2 $todo->foreach( \@objects, $coderef, [@args] )
+
+Run the coderef on each object in the arrayref.  C<$coderef>
+will be called with the object as the first argument and
+any C<@args> as the rest.
+
 =head2 $todo->readable( $object, $attribute )
 
 Currently just looks to see if the given C<$attribute> of C<$object>
@@ -637,12 +661,27 @@ only for which tasks need to be added or removed.
 
 =item *
 
-Bulk addition of tasks.
+Bulk addition of tasks.  (Bulk editing is enabled but currently
+undocumented - see App::Toodledo::Task::edit.)
+
+=item *
+
+Separate task cache age testing from loading the whole cache, takes
+too long.
 
 =item *
 
 Flesh out the L<App::Toodledo::Account> class with the methods
 for querying an account.
+
+=item *
+
+Handling of the *date/*time attributes needs to be coordinated
+so it is useful.
+
+=item *
+
+Convert logging to use Log4Perl.
 
 =back
 
@@ -656,7 +695,7 @@ To find all tasks with the 'Home' context and add a 'DIY' tag if not there:
   my @all_tasks = $todo->get_tasks_from_cache;
   for my $task ( $todo->select( \@tasks, 'context eq "Home" ) )
   {
-    next if grep { $_ eq 'DIY' } $task->tags;
+    next if $task->has_tag( 'DIY' );
     $task->tag( $task->tag . ',DIY' );
     $todo->edit( $task );
   }
@@ -670,13 +709,15 @@ App::Toodledo is Moose-based.  Each of the object types (task, folder,
 context, goal, location, notebook, and the account singleton) is
 represented via an object class App::Toodledo::Task, App::Toodledo::Folder,
 etc.  Each one of those classes contains each Toodledo attribute as
-a writable attribute, e.g. $task->context( 'foo' ). Additional methods
+a writable attribute, e.g. $task->context( 12345 ). Additional methods
 can be added (e.g., 'tags' is a simple convenience method for
 App::Toodledo::Task) in each of those classes; the Toodledo attributes
 are handled by being delegated to an internal object (e.g.,
 App::Toodledo::TaskInternal) which implements a Role (e.g.,
 App::Toodledo::TaskRole) that contains precisely and only the list
-of Toodledo attributes.
+of Toodledo attributes.  (See L<App::Toodledo::Task> for details
+on the C<context_name> method for accessing contexts via their names
+instead of IDs.)
 
 Therefore when Toodledo changes its attribute lists, change only
 the corresponding Role class and everything will continue working.
