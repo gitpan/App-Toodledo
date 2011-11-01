@@ -59,11 +59,11 @@ method note ( @args ) {
 }
 
 
-method status ( Item $new_status? ) {
+method status_str ( Item $new_status? ) {
   $self->set_enum( status => $new_status );
 }
 
-method priority ( Item $new_priority? ) {
+method priority_str ( Item $new_priority? ) {
   $self->set_enum( priority => $new_priority );
 }
 
@@ -142,7 +142,7 @@ module.
 
 Return the tags of the task as a list (splits the attribute on comma).
 
-=head2 $task->status, $task->priority
+=head2 $task->status_str, $task->priority_str
 
 Each of these methods operates on the string defined at
 http://api.toodledo.com/2/tasks/index.php, not the integer.
@@ -150,8 +150,10 @@ The string will be turned into the integer going into Toodledo
 and the integer will get turned into the string coming out.
 Examples:
 
-  $task->priority( 'Top' )
-  $task->status eq 'Hold' and ...
+  $task->priority_str( 'Top' )
+  $task->status_str eq 'Hold' and ...
+
+Each method can be used in a App::Toodledo::select call.
 
 =head1 CAVEAT
 

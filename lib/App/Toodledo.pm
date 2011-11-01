@@ -2,7 +2,7 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '2.02';
+our $VERSION = '2.03';
 
 use Carp;
 use File::Spec;
@@ -13,7 +13,6 @@ use MooseX::ClassAttribute;
 use JSON;
 use URI::Encode qw(uri_encode);
 use LWP::UserAgent;
-use POSIX qw(strftime);
 use Date::Parse;
 use YAML qw(LoadFile DumpFile);
 
@@ -41,6 +40,7 @@ has user_agent    => ( is => 'ro', default => \&_make_user_agent );
 has info_cache    => ( is => 'rw', isa => 'App::Toodledo::InfoCache' );
 has account_info  => ( is => 'rw', isa => 'App::Toodledo::Account' );
 has task_cache    => ( is => 'rw', isa => 'App::Toodledo::TaskCache' );
+
 
 method get_session_token ( Str :$app_token?, Str :$user_id? ) {
   my $app_id   = $self->app_id;
@@ -539,10 +539,12 @@ be passed through C<eval>.  Examples:
 
 =over 4
 
-=item tag eq "garden" && status eq "Planning"
+=item tag eq "garden" && status > 3
 
-Must have the 'garden' tag (and only that tag) amd a status of
-'Planning'.  (Only makes sense for a task list.)
+Must have the 'garden' tag (and only that tag) amd a status greater
+than the index for the status value 'Planning'.  (Only makes sense for
+a task list.)  To access (or change) the status as a string, 
+use C<status_str>.
 
 =item title =~ /deliver/i && comp == 1
 

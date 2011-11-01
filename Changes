@@ -31,3 +31,7 @@ Revision history for App-Toodledo
 
 2.02    Nov 1, 2011
         Added enumerated types for status, priority.
+
+2.03    Nov 1, 2011
+ 	Revised enumerated types method names to give
+ 	access to native integer types back.
