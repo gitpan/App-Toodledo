@@ -155,7 +155,8 @@ method has_tag ( Str $tag! ) {
 
 
 method add_tag ( Str $tag! ) {
-  $self->tag( $self->tag . ",$tag" ) unless $self->has_tag( $tag );
+  my $new_tag = $self->tag ? $self->tag . ", $tag" : $tag;
+  $self->tag( $new_tag ) unless $self->has_tag( $tag );
 }
 
 

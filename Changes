@@ -38,3 +38,6 @@ Revision history for App-Toodledo
 
 2.04    Nov 1, 2011
 	Fixed problem with Variable names cannot contain ::.
+
+2.05	Nov 2, 2011
+	Removed spurious use of MooseX::Method from FolderInternal.

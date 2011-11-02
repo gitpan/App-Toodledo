@@ -2,7 +2,6 @@ package App::Toodledo::FolderInternal;
 
 use Carp;
 use Moose;
-use MooseX::Method;
 
 with 'App::Toodledo::FolderRole';
 
