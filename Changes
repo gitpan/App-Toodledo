@@ -41,3 +41,8 @@ Revision history for App-Toodledo
 
 2.05	Nov 2, 2011
 	Removed spurious use of MooseX::Method from FolderInternal.
+	Added disclaimer.
+
+2.06    Nov 4, 2011
+	Added App::Toodledo::Task::remove_tag method.  Documented
+	editing multiple tasks.

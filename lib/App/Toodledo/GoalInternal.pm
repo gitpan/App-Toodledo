@@ -3,6 +3,8 @@ package App::Toodledo::GoalInternal;
 use Carp;
 use Moose;
 
+our $VERSION = '1.00';
+
 with 'App::Toodledo::GoalRole';
 
 1;

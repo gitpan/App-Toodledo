@@ -2,6 +2,8 @@ package App::Toodledo::GoalRole;
 
 use Moose::Role;
 
+our $VERSION = '1.00';
+
 has id          => ( is => 'rw', isa => 'Int' );
 has name        => ( is => 'rw', isa => 'Str' );
 has level       => ( is => 'rw', isa => 'Int' );

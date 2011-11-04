@@ -2,6 +2,8 @@ package App::Toodledo::LocationRole;
 
 use Moose::Role;
 
+our $VERSION = '1.00';
+
 has id          => ( is => 'rw', isa => 'Int' );
 has name        => ( is => 'rw', isa => 'Str' );
 has description => ( is => 'rw', isa => 'Str' );

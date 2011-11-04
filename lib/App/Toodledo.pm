@@ -2,7 +2,7 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '2.05';
+our $VERSION = '2.06';
 
 use Carp;
 use File::Spec;
@@ -371,6 +371,9 @@ App::Toodledo - Interacting with the Toodledo task management service.
                   "duedate < $time + $ONEDAY && duedate  > $time" );
     my @privates = $todo->select( \@folders, "private > 0" );
 
+    $todo->foreach( \@tasks, \&manipulate );
+    $todo->edit( @tasks );
+
 =head1 DESCRIPTION
 
 Toodledo (L<http://www.toodledo.com/>) is a web-based capability for managing
@@ -394,6 +397,10 @@ few things I wanted out of an API and when I feel a need for some
 additional capability, I'll add it.  In the mean time, if there's something
 you want it to do, feel free to submit a patch.  Or, heck, if you're
 sufficiently motivated, I'll let you take over the whole thing.
+
+This module uses L<MooseX::Method::Signatures> to perform argument validation.
+If you violate the type checking you will quite probably get upwards of a
+hundred lines of error messages.  That's the way it goes.
 
 =head1 METHODS
 
@@ -539,7 +546,14 @@ Note: this method is overridden in App::Toodledo::Task.
 =head2 $todo->edit( $object )
 
 The given object will be updated in Toodledo to match the one passed.
-Note: this method is overridden in App::Toodledo::Task.
+Note: this method is overridden in App::Toodledo::Task.  When the object
+is a task, the signature is:
+
+=head2 $todo->edit( $task, [@tasks] )
+
+All of the tasks will be edited.  You are responsible for ensuring
+that you do not exceed Toodledo limits on the number of tasks passed
+(currently 50).
 
 =head2 @objects = $todo->select( \@objects, $expr );
 

@@ -2,7 +2,7 @@ package App::Toodledo::Task;
 use strict;
 use warnings;
 
-our $VERSION = '1.01';
+our $VERSION = '1.02';
 
 use Carp;
 use Moose;
@@ -144,7 +144,12 @@ method set_name( App::Toodledo $todo!, Str $type!, Item $new_string? ) {
 }
 
 
-method tags {
+method tags ( Str @new_tags ) {
+  if ( @new_tags )
+  {
+    $self->tag( join ', ', @new_tags );
+    return @new_tags;
+  }
   split /,/, $self->tag;
 }
 
@@ -157,6 +162,13 @@ method has_tag ( Str $tag! ) {
 method add_tag ( Str $tag! ) {
   my $new_tag = $self->tag ? $self->tag . ", $tag" : $tag;
   $self->tag( $new_tag ) unless $self->has_tag( $tag );
+}
+
+
+method remove_tag ( Str $tag! ) {
+  return unless $self->has_tag( $tag );
+  my @new_tags = grep { $_ ne $tag } $self->tags;
+  $self->tags( @new_tags );
 }
 
 
@@ -176,7 +188,7 @@ method optional_attributes ( $class: ) {
 }
 
 
-method edit ( App::Toodledo $todo!, Object @more ) {
+method edit ( App::Toodledo $todo!, App::Toodledo::Task @more ) {
   if ( @more )
   {
     my @edited = map { +{ %{ $_->object } } } ( $self, @more );
@@ -220,9 +232,10 @@ module.
 
 =head1 METHODS
 
-=head2 @tags = $task->tags
+=head2 @tags = $task->tags( [@tags] )
 
 Return the tags of the task as a list (splits the attribute on comma).
+If a list is provided, set the tags to that list.
 
 =head2 $task->has_tag( $tag )
 
@@ -231,6 +244,26 @@ Return true if the tag C<$tag> is in the list returned by C<tags()>.
 =head2 $task->add_tag( $tag )
 
 Add the given tag.  No-op if the task already has that tag.
+
+=head2 $task->remove_tag( $tag )
+
+Remove the given tag.  No-op if the task doesn't have that tag.
+
+=head2 $task->edit( @tasks )
+
+This is the method called by:
+
+  App::Toodledo::edit( $task )
+
+You can pass multiple tasks to it:
+
+  $todo->edit( @tasks )
+
+and they will all be updated.
+The current maximum number of tasks you can send to Toodledo for
+editing is 50.  B<This method does not check for that.>  (They
+might raise the limit in the future.)  Bounds checking is the caller's
+responsibility.
 
 =head2 $task->status_str, $task->priority_str
 

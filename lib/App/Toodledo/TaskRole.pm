@@ -2,6 +2,8 @@ package App::Toodledo::TaskRole;
 
 use Moose::Role;
 
+our $VERSION = '1.00';
+
 # Minimal attributes when fetching:
 has id           => ( is => 'rw', isa => 'Int' );
 has title        => ( is => 'rw', isa => 'Str' );

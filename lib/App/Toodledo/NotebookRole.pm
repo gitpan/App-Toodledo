@@ -2,6 +2,8 @@ package App::Toodledo::NotebookRole;
 
 use Moose::Role;
 
+our $VERSION = '1.00';
+
 has id           => ( is => 'rw', isa => 'Int' );
 has title        => ( is => 'rw', isa => 'Str' );
 has folder       => ( is => 'rw', isa => 'Int' );

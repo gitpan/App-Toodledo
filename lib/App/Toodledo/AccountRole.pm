@@ -2,6 +2,8 @@ package App::Toodledo::AccountRole;
 
 use Moose::Role;
 
+our $VERSION = '1.00';
+
 has pro                 => (is => 'rw', isa => 'Int' );
 has dateformat          => (is => 'rw', isa => 'Str' );
 has timezone            => (is => 'rw', isa => 'Int' );

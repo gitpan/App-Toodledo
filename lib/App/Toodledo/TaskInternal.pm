@@ -3,6 +3,8 @@ package App::Toodledo::TaskInternal;
 use Carp;
 use Moose;
 
+our $VERSION = '1.00';
+
 with 'App::Toodledo::TaskRole';
 
 1;
