@@ -2,7 +2,7 @@ package App::Toodledo::TaskRole;
 
 use Moose::Role;
 
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 
 # Minimal attributes when fetching:
 has id           => ( is => 'rw', isa => 'Int' );
@@ -14,7 +14,7 @@ has modified     => ( is => 'rw', isa => 'Int' );
 has tag          => ( is => 'rw', isa => 'Str' );
 has folder       => ( is => 'rw', isa => 'Int' );
 has context      => ( is => 'rw', isa => 'Str' );
-has goal         => ( is => 'rw', isa => 'Str' );
+has goal         => ( is => 'rw', isa => 'Int' );
 has location     => ( is => 'rw', isa => 'Int' );
 has parent       => ( is => 'rw', isa => 'Int' );
 has children     => ( is => 'rw', isa => 'Int' );

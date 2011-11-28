@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               App-Toodledo
-version:            2.06
+version:            2.07
 abstract:           Interacting with the Toodledo task management service.
 author:
     - Peter J. Scott <cpan@psdt.com>

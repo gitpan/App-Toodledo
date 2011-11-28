@@ -46,3 +46,6 @@ Revision history for App-Toodledo
 2.06    Nov 4, 2011
 	Added App::Toodledo::Task::remove_tag method.  Documented
 	editing multiple tasks.
+
+2.07    Nov 28, 2011
+	Fixed t/03-token.t for path separator on DOS.

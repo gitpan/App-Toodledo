@@ -7,6 +7,7 @@ use Test::NoWarnings;
 use Test::Exception;
 use Test::MockModule;
 use Test::MockObject;
+use File::Spec;
 
 my $CLASS;
 my $USERID   = 'username';
@@ -34,4 +35,6 @@ lives_ok{ $result = $todo->get_session_token_from_rc };
 
 is $result, $TOKEN, 'Result';
 isa_ok $cache_file, 'App::Toodledo::TokenCache';
-is $todo->_token_cache_name, "$ENV{HOME}/".$todo->Token_File_Name, 'Token file name';
+is $todo->_token_cache_name, File::Spec->catfile( $ENV{HOME},
+						  $todo->Token_File_Name ),
+  'Token file name';

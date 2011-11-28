@@ -9,6 +9,9 @@ has name        => ( is => 'rw', isa => 'Str' );
 has level       => ( is => 'rw', isa => 'Int' );
 has archived    => ( is => 'rw', isa => 'Bool' );
 has contributes => ( is => 'rw', isa => 'Int' );
+has goal        => ( is => 'rw', isa => 'Str' );
+has note        => ( is => 'rw', isa => 'Str' );
+
 
 no Moose;
 

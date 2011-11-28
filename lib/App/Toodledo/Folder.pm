@@ -2,18 +2,30 @@ package App::Toodledo::Folder;
 use strict;
 use warnings;
 
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 
 use Carp;
 use Moose;
 use MooseX::Method::Signatures;
 use App::Toodledo::FolderInternal;
 
+use Moose::Util::TypeConstraints;
+BEGIN { class_type 'App::Toodledo' };
+
 extends 'App::Toodledo::InternalWrapper';
 
 has object => ( is => 'ro', isa => 'App::Toodledo::FolderInternal',
 	        default => sub { App::Toodledo::FolderInternal->new },
 	        handles => sub { __PACKAGE__->internal_attributes( $_[1] ) } );
+
+
+method add ( App::Toodledo $todo! ) {
+  my @args = ( name => $self->name );
+  $self->$_ and push @args, ( $_ => $self->$_ ) for qw(private archived ord);
+  my $added_ref = $todo->call_func( folder => add => { @args } );
+  $added_ref->[0]{id};
+}
+
 
 1;
 

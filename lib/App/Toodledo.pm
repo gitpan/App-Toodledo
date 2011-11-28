@@ -2,7 +2,7 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '2.06';
+our $VERSION = '2.07';
 
 use Carp;
 use File::Spec;
@@ -338,6 +338,7 @@ method readable ( Object $object, Str $attribute ) {
   my $value = $object->$attribute;
   if ( $attribute =~ /date\z/ )
   {
+    $value or return '';
     return preferred_date_format( $self->account_info->dateformat, $value );
   }
   $value;
@@ -558,7 +559,7 @@ that you do not exceed Toodledo limits on the number of tasks passed
 =head2 @objects = $todo->select( \@objects, $expr );
 
 Select just the objects you need from the given array, based upon the
-expression.  Any attribute of the givem objects specified in the exprssion
+expression.  Any attribute of the given objects specified in the exprssion
 will br turned into an object accessor for that attribute and the resulting
 expression must be syntactically correct.  Any Perl code can be used; it will
 be passed through C<eval>.  Examples:
@@ -569,7 +570,7 @@ be passed through C<eval>.  Examples:
 
 Must have the 'garden' tag (and only that tag) amd a status greater
 than the index for the status value 'Planning'.  (Only makes sense for
-a task list.)  To access (or change) the status as a string, 
+a task list.)  To access (or change) the status as a string,
 use C<status_str>.
 
 =item title =~ /deliver/i && comp == 1
@@ -597,6 +598,8 @@ any C<@args> as the rest.
 Currently just looks to see if the given C<$attribute> of C<$object>
 is a date and if so, returns the C<preferred_date_formst> string
 from L<App::Toodledo::Util> instead of the stored epoch second count.
+If the date is null, returns an empty string (rather than the Toodledo
+display of "no date").
 
 =head1 ERRORS
 

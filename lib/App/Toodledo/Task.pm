@@ -137,7 +137,7 @@ method set_name( App::Toodledo $todo!, Str $type!, Item $new_string? ) {
     return $new_string;
   }
 
-  my $id = $self->$type or return '';
+  my $id = $self->$type or return 'N;
   my ($obj) = grep { $_->id == $id } @objs
     or croak "Could not find existing $type $id in global list!";
   $obj->name;
@@ -287,6 +287,9 @@ Examples:
 
   $task->folder_name( $todo, 'Later' );
   $task->context_name( $todo ) eq 'Home' and ...
+
+If the value is null, returns the empty string rather than the Toodledo
+display value of "No <Whatever>".
 
 NOTE: An App::Toodledo object must be passed as the first parameter
 so it can look up the mapping of objects to names.
