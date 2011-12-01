@@ -137,7 +137,7 @@ method set_name( App::Toodledo $todo!, Str $type!, Item $new_string? ) {
     return $new_string;
   }
 
-  my $id = $self->$type or return 'N;
+  my $id = $self->$type or return '';
   my ($obj) = grep { $_->id == $id } @objs
     or croak "Could not find existing $type $id in global list!";
   $obj->name;

@@ -49,3 +49,6 @@ Revision history for App-Toodledo
 
 2.07    Nov 28, 2011
 	Fixed t/03-token.t for path separator on DOS.
+
+2.08	Nov 30, 2011
+	Fixed braindead typo in Task.pm
