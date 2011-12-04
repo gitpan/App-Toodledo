@@ -52,3 +52,6 @@ Revision history for App-Toodledo
 
 2.08	Nov 30, 2011
 	Fixed braindead typo in Task.pm
+
+2.09	Dec 4, 2011
+	Fix another test failure 03-token.t.
