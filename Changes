@@ -55,3 +55,7 @@ Revision history for App-Toodledo
 
 2.09	Dec 4, 2011
 	Fix another test failure 03-token.t.
+
+2.10	Dec 29, 2011
+	'star' and 'startdate' both matched 'startdate' in select()
+	until \b anchors added.

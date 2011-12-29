@@ -2,7 +2,7 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '2.09';
+our $VERSION = '2.10';
 
 use Carp;
 use File::Spec;
@@ -256,7 +256,7 @@ method select ( ArrayRef[Object] $o_ref, Str $expr ) {
     $expr =~ s/(.*)/($1) && completed == 0/ unless $expr =~ /completed/;
   }
 
-  $expr =~ s/$_/\$self->$_/g for $prototype->attribute_list;
+  $expr =~ s/\b$_\b/\$self->$_/g for $prototype->attribute_list;
   debug( "Searching in " . @$o_ref . "objects for '$expr'\n" );
   my $selector = sub { my $self = shift; eval $expr };
   $self->grep_objects( $o_ref, $selector );
@@ -392,6 +392,12 @@ What do you need the API for?  Doesn't the web interface do everything
 you want?  Not always.  See the examples included with this distribution.
 For instance, Toodledo has only one level of notification and it's either
 on or off.  With the API you can customize the heck out of notification.
+Or suppose you want to find tasks where the due date has erroneously
+been set to before the start date.  Toodledo lets you do this and the
+online search function can't find them.  But with C<App::Toodledo> it's
+as simple as:
+
+  say $_->title for $todo->select( \@tasks => q{duedate && startdate > duedate} )
 
 This is a very basic, preliminary Toodledo module.  I wrote it to do the
 few things I wanted out of an API and when I feel a need for some
