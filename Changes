@@ -66,3 +66,10 @@ Revision history for App-Toodledo
 2.12    Feb 8, 2011
 	Require latest version of YAML, which Ingy has fixed the Mo::xxx
 	warnings in now.
+
+2.13	Feb 20, 2012
+	Quieted benign Log4Perl messages in test 04.
+
+2.14	Apr 15, 2012
+	Require a version of Log::Log4perl that doesn't have problem
+	with new defined(@array) deprecation.

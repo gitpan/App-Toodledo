@@ -41,6 +41,7 @@ WriteMakefile(
         'Test::Exception' => 0,
         'Test::MockModule' => 0,
         'Test::MockObject' => 1.20110612,
+	'Log::Log4perl' => 1.36,
         'Moose' => 0.93,
         'MooseX::Method::Signatures' => 0.37,
 	'MooseX::ClassAttribute' => 0.12,

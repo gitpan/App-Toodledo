@@ -9,13 +9,17 @@ use Test::MockModule;
 use Test::MockObject;
 use JSON;
 
+use Log::Log4perl qw(:easy);
+
 my $CLASS;
 my $FUNC    = 'myFunc';
 my $SUBFUNC = 'mySubFunc';
 my $USERID  = 'username';
 my $APPID   = 'myApp';
 
-BEGIN { $CLASS = 'App::Toodledo'; use_ok $CLASS }
+BEGIN { Log::Log4perl->easy_init( $OFF );
+        $CLASS = 'App::Toodledo';
+        use_ok $CLASS }
 
 my $mock = Test::MockModule->new( $CLASS );
 my $fake_a = Test::MockObject->new;

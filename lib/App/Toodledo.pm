@@ -2,7 +2,7 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '2.12';
+our $VERSION = '2.14';
 
 use File::Spec;
 use Digest::MD5 'md5_hex';
