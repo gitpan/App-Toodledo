@@ -36,4 +36,4 @@ requires:
   Test::NoWarnings: 0
   URI::Encode: 0
   YAML: 0.79
-version: 2.14
+version: 2.15

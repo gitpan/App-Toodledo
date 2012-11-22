@@ -73,3 +73,7 @@ Revision history for App-Toodledo
 2.14	Apr 15, 2012
 	Require a version of Log::Log4perl that doesn't have problem
 	with new defined(@array) deprecation.
+
+2.15	Nov 22, 2012
+	Fix logging bug in InfoCache found by Kurt Starsinic that prevented
+	login_from_rc working.

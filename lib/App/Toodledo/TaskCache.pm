@@ -3,7 +3,7 @@ package App::Toodledo::TaskCache;
 use Moose;
 use MooseX::Method::Signatures;
 use MooseX::ClassAttribute;
-use App::Toodledo::Util qw(home );
+use App::Toodledo::Util qw(home);
 use YAML qw(LoadFile DumpFile);
 with 'MooseX::Log::Log4perl';
 
