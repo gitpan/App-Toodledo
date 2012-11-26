@@ -4,6 +4,8 @@ use warnings;
 
 our $VERSION = '1.02';
 
+BEGIN { $PPI::XS_DISABLE = 1 }  # PPI::XS throws deprecation warnings in 5.16
+
 use Carp;
 use Moose;
 use MooseX::Method::Signatures;

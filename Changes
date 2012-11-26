@@ -77,3 +77,6 @@ Revision history for App-Toodledo
 2.15	Nov 22, 2012
 	Fix logging bug in InfoCache found by Kurt Starsinic that prevented
 	login_from_rc working.
+
+2.16	Disable PPI::XS.  It throws warnings on deprecated(@array) on newer
+	perls and the PPI::XS bug report has been open for months.

@@ -2,7 +2,9 @@ package App::Toodledo;
 use strict;
 use warnings;
 
-our $VERSION = '2.15';
+our $VERSION = '2.16';
+
+BEGIN { $PPI::XS_DISABLE = 1 }  # PPI::XS throws deprecation warnings in 5.16
 
 use File::Spec;
 use Digest::MD5 'md5_hex';
